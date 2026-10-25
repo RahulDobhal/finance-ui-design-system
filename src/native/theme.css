@@ -1,0 +1,121 @@
+/* Generated from shared tokens.json. Import AFTER heroui-native/styles. */
+@layer theme {
+ @variant light {
+  --background: #fafafa;
+  --foreground: #191919;
+  --surface: #ffffff;
+  --surface-secondary: #f4f4f4;
+  --surface-tertiary: #ebebeb;
+  --muted: #686868;
+  --accent: #71ef8a;
+  --accent-foreground: #050505;
+  --accent-soft: #e5fce9;
+  --accent-soft-foreground: #165638;
+  --default: #ebebeb;
+  --default-foreground: #262626;
+  --border: #d8d8d8;
+  --separator: #ebebeb;
+  --field-background: #ffffff;
+  --field-foreground: #191919;
+  --field-placeholder: #686868;
+  --field-border: #b9b9b9;
+  --overlay: #ffffff;
+  --overlay-foreground: #191919;
+  --success: #196b44;
+  --success-foreground: #ffffff;
+  --success-soft: #e5fce9;
+  --warning: #875607;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fff7e5;
+  --danger: #b32c2c;
+  --danger-foreground: #ffffff;
+  --danger-soft: #fff0ef;
+  --info: #315fa7;
+  --info-soft: #edf3ff;
+  --focus: #196b44;
+  --link: #165638;
+  --money-positive: #196b44;
+  --money-negative: #b32c2c;
+  --balance-background: #ffffff;
+  --balance-foreground: #191919;
+  --balance-muted: #686868;
+  --balance-action: #71ef8a;
+  --chart-1: #196b44;
+  --chart-2: #85c49d;
+  --chart-3: #315fa7;
+  --chart-4: #875607;
+  --chart-5: #8a8a8a;
+  --secondary: #050505;
+  --secondary-foreground: #ffffff;
+  --secondary-border: #050505;
+  --balance-action-foreground: #050505;
+  --user-message: #ebebeb;
+  --surface-foreground: var(--foreground); --surface-secondary-foreground: var(--foreground); --surface-tertiary-foreground: var(--foreground); --segment: var(--surface); --segment-foreground: var(--foreground);
+ }
+ @variant dark {
+  --background: #101010;
+  --foreground: #f4f4f4;
+  --surface: #191919;
+  --surface-secondary: #262626;
+  --surface-tertiary: #383838;
+  --muted: #b5b5b5;
+  --accent: #71ef8a;
+  --accent-foreground: #050505;
+  --accent-soft: #092519;
+  --accent-soft-foreground: #a6f7b5;
+  --default: #262626;
+  --default-foreground: #f4f4f4;
+  --border: #383838;
+  --separator: #262626;
+  --field-background: #191919;
+  --field-foreground: #f4f4f4;
+  --field-placeholder: #b5b5b5;
+  --field-border: #525252;
+  --overlay: #262626;
+  --overlay-foreground: #f4f4f4;
+  --success: #a6f7b5;
+  --success-foreground: #092519;
+  --success-soft: #154530;
+  --warning: #efc36b;
+  --warning-foreground: #101010;
+  --warning-soft: #3d3019;
+  --danger: #ff9992;
+  --danger-foreground: #101010;
+  --danger-soft: #432825;
+  --info: #95baff;
+  --info-soft: #202f49;
+  --focus: #a6f7b5;
+  --link: #a6f7b5;
+  --money-positive: #a6f7b5;
+  --money-negative: #ff9992;
+  --balance-background: #191919;
+  --balance-foreground: #f4f4f4;
+  --balance-muted: #b5b5b5;
+  --balance-action: #71ef8a;
+  --chart-1: #71ef8a;
+  --chart-2: #4ea877;
+  --chart-3: #95baff;
+  --chart-4: #efc36b;
+  --chart-5: #8a8a8a;
+  --secondary: #050505;
+  --secondary-foreground: #ffffff;
+  --secondary-border: #686868;
+  --balance-action-foreground: #050505;
+  --user-message: #262626;
+  --surface-foreground: var(--foreground); --surface-secondary-foreground: var(--foreground); --surface-tertiary-foreground: var(--foreground); --segment: var(--surface); --segment-foreground: var(--foreground);
+ }
+}
+@theme { --spacing: 4px; --radius: 6px; --field-radius: 8px; --radius-panel: 10px; }
+@theme { --text-xs: 12px; --text-sm: 14px; --text-base: 16px; --text-lg: 16px; --text-xl: 24px; --text-2xl: 24px; --text-3xl: 32px; --text-4xl: 32px; --font-weight-bold: 600; }
+@layer components {
+ .surface__root, .surface__background { border-radius: 10px; }
+ .card__root { padding: 16px; }
+ .button__root { min-height: 48px; height: auto; min-width: 48px; padding-inline: 12px; padding-block: 8px; }
+ .button__root, .button__background { border-radius: 6px; }
+ .button__root--variant-secondary, .button__background--variant-secondary { background-color: var(--secondary); border-color: var(--secondary-border); border-width: 1px; }
+ .button__label--variant-secondary { color: var(--secondary-foreground); }
+ .button__root--variant-tertiary { background-color: var(--default); }
+ .button__label { font-size: 14px; font-weight: 500; }
+ .input__root, .select__trigger, .text-area__root { min-height: 48px; border-radius: 8px; }
+ .chip__root { border-radius: 4px; }
+}

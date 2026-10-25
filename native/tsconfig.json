@@ -1,0 +1,1 @@
+{"extends":"expo/tsconfig.base","compilerOptions":{"strict":true,"allowJs":true,"checkJs":false,"resolveJsonModule":true,"skipLibCheck":true},"include":["**/*.ts","**/*.tsx","../src/design-system/tokens.ts","../src/design-system/money.mjs"],"exclude":["node_modules"]}

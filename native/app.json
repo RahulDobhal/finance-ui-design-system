@@ -1,0 +1,1 @@
+{"expo":{"name":"Finance UI Catalog","slug":"finance-ui-catalog","version":"0.1.0","orientation":"portrait","userInterfaceStyle":"automatic","newArchEnabled":true,"ios":{"supportsTablet":true},"android":{},"plugins":["@react-native-community/datetimepicker"]}}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+native/node_modules/
+native/dist/
+native/dist-android/
+native/.expo/
+*.tsbuildinfo
+.DS_Store
+
+.env
+.env.*
+!.env.example
+*.log

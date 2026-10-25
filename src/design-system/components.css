@@ -1,0 +1,34 @@
+/* HeroUI bindings. Visual padding and touch area are separate contracts. */
+.button {
+  min-height: var(--touch-minimum);
+  min-width: var(--touch-minimum);
+  height: auto;
+  padding: var(--padding-controlY) var(--padding-controlX);
+  border-radius: var(--radius-sm);
+  font-size: var(--type-label-size);
+  line-height: var(--type-label-line);
+  font-weight: 500;
+  transition: background-color var(--motion-fast), border-color var(--motion-fast), opacity var(--motion-fast);
+}
+.button--primary { background: var(--accent); color: var(--accent-foreground); }
+.button--secondary { background: var(--secondary); color: var(--secondary-foreground); border: 1px solid var(--secondary-border); }
+.button--tertiary { background: var(--default); color: var(--default-foreground); }
+.button--secondary:hover { background: color-mix(in srgb, var(--secondary) 90%, white); }
+.button--primary:hover { background: color-mix(in srgb, var(--accent) 90%, black); }
+.card, .surface { padding: var(--padding-card); border-radius: var(--radius-lg); background: var(--surface); box-shadow: none; }
+.card { border: 1px solid var(--border); }
+.input, .text-area, .select__trigger, .input-group { border-radius: var(--radius-md); min-height: var(--touch-minimum); }
+.input, .text-area { font-size: var(--type-body-size); }
+.chip, .tag { border-radius: var(--radius-xs); }
+.modal__dialog, .popover, .dropdown__popover, .select__popover { border-radius: var(--radius-xl); }
+@supports (corner-shape: squircle) {
+  .button, .card, .surface, .input, .text-area, .select__trigger, .input-group,
+  .amount-box, .recipient-row, .payment-card, .prompt-input, .user-query,
+  .thinking-panel, .story-instance { corner-shape: squircle; }
+}
+@media (pointer: coarse) {
+  button, [role="button"], .checkbox, .radio, .switch, summary { min-height: var(--touch-minimum); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
