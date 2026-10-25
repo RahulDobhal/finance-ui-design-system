@@ -57,6 +57,14 @@ The shell owns navigation/theme/notifications. Foundations, story controls, patt
 
 Run `npm run tokens:check`, `npm test`, `npm run build`, and `npm --prefix native run typecheck`. Run `npm run tokens` only when changing tokens; check mode fails on stale outputs without rewriting them. Native exports use a Node version supported by Expo (Node 24.14.0 was used here).
 
-See [VALIDATION.md](VALIDATION.md) for actual evidence. Native device QA, RTL/localization, large text, keyboard/safe-area behavior, gestures and assistive technology remain integration checks. Financial authorization, real payments, KYC, authentication and live rates are application services. The full workshop still produces a Vite chunk-size warning; product consumers import the reusable entries rather than the catalog.
+See [VALIDATION.md](VALIDATION.md) for actual evidence. Native device QA, RTL/localization, large text, keyboard/safe-area behavior, gestures and assistive technology remain integration checks. Financial authorization, real payments, KYC, authentication and live rates are application services. The workshop and mobile product example load separately. Product consumers import the reusable entries rather than the catalog; shared component styles still require a consumer-specific performance review.
 
 References: the supplied finance and chat images, [HextaUI Chat Thread](https://hextaui.com/blocks/chat-thread), [Razorpay Blade](https://blade.razorpay.com/), and the Mobbin observations in [FINANCE-AUDIT.md](FINANCE-AUDIT.md). Prompt history is in [prompt.md](prompt.md).
+
+## Mobile web product examples
+
+Open `#Product%2FAssistant` or the workshop's Product demo link. Five screens in `src/product/` compose the public web components. Screen-specific data, validation, filters, local chat responses and view state stay in this folder. No native source was expanded. The product owns its viewport layout; reusable components do not own the page viewport.
+
+The web AmountInput additionally accepts `errorMessage` with `error` for application-specific validation. The label and error remain linked to the input. An empty ChatThread title omits its local heading when the screen already provides one.
+
+See [FINAL-REVIEW.md](FINAL-REVIEW.md) for the benchmark and remaining distribution/accessibility work.

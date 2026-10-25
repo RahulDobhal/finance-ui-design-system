@@ -136,6 +136,7 @@ test("action, chat and secondary text pairs meet AA in both themes", () => {
 test("handwritten styles contain no raw color literals or independent font sizes", () => {
   for (const path of [
     "src/styles.css",
+    "src/product/product.css",
     "src/components/styles.css",
     "src/components/finance.css",
     "src/workshop/chat.css",

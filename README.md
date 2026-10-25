@@ -9,7 +9,7 @@ npm ci
 npm run dev
 ```
 
-Open **http://localhost:5188**. The workshop contains 8 foundation pages, 72 component stories and 6 composed patterns, plus the finance audit and Mobbin references. Use light/dark mode, story controls, token mappings, deferred source previews and interaction logs. All displayed financial records and actions are demonstrations.
+Open **http://localhost:5188** for the workshop, or **http://localhost:5188/#Product%2FAssistant** for the mobile web product. The product includes assistant, spending, transfer, activity and card screens with simulated interactions. The workshop contains 8 foundation pages, 72 component stories and 6 composed patterns, plus the finance audit and Mobbin references. Use light/dark mode, story controls, token mappings, deferred source previews and interaction logs. All displayed financial records and actions are demonstrations.
 
 ```sh
 cd native
@@ -40,7 +40,7 @@ import './src/components/styles.css';
 
 `TransferReview` accepts a quote and recipient and emits an immutable reviewed snapshot. Supply that snapshot and the application’s actual transfer status to `Receipt`. Fees, currencies, rates and expiry are explicit; the components never execute payments. `ChatThread` is controlled through messages, draft, status and callbacks, with a result slot for composed financial UI.
 
-The [handoff](HANDOFF.md) explains public contracts, usage boundaries, visual rules and native integration. [FINANCE-AUDIT.md](FINANCE-AUDIT.md) lists coverage and remaining domain gaps. [prompt.md](prompt.md) preserves the supplied project and side-chat prompts.
+The [final review](FINAL-REVIEW.md) benchmarks the architecture against Radix, React Aria, Base UI and shadcn/ui and lists release gaps. The [handoff](HANDOFF.md) explains public contracts, usage boundaries, visual rules and native integration. [FINANCE-AUDIT.md](FINANCE-AUDIT.md) lists coverage and remaining domain gaps. [prompt.md](prompt.md) preserves the supplied project and side-chat prompts.
 
 ## Structure
 
@@ -48,6 +48,8 @@ The [handoff](HANDOFF.md) explains public contracts, usage boundaries, visual ru
 src/index.ts                    Web product entry
 src/components/                 Reusable web finance/chat UI and CSS
 src/design-system/              Tokens, types and shared financial/chat logic
+src/product/                    Mobile web screens, fixtures and local simulation
+src/Root.tsx                    Lazy product/workshop entry switch
 src/workshop/                   Browser stories, fixtures, shell pages and demo hooks
 src/data/catalog.ts             Catalog metadata and benchmark references
 native/components.ts            Native product entry

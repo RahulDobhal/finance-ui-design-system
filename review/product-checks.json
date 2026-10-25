@@ -1,0 +1,276 @@
+{
+  "date": "2026-10-25",
+  "scope": "Final mobile web product; simplified header and masked card overview preserved",
+  "checks": [
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Assistant",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Spending",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Transfer",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Activity",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Cards",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Assistant",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Spending",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Transfer",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Activity",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 801,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Cards",
+      "width": 320
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Assistant",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Spending",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Transfer",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Activity",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Cards",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Assistant",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Spending",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Transfer",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Activity",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 844,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Cards",
+      "width": 390
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Assistant",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Spending",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Transfer",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Activity",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "light",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Cards",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Assistant",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Spending",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Transfer",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Activity",
+      "width": 1200
+    },
+    {
+      "contentOverflow": [],
+      "height": 900,
+      "mode": "dark",
+      "pageOverflow": false,
+      "promptAboveNavigation": true,
+      "screen": "Cards",
+      "width": 1200
+    }
+  ]
+}

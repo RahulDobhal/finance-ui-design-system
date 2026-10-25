@@ -1,4 +1,37 @@
-# Validation — visual refinement and code scalability
+# Final web review and product screens
+
+Verified 25 October 2026. This section supersedes the earlier web build observations below; the earlier native export evidence remains historical.
+
+| Check | Result |
+| --- | --- |
+| Token freshness | Pass; no token or native theme changes |
+| Automated tests | **42 passed** |
+| Web strict TypeScript / production build | Pass |
+| Responsive product layouts | **30/30** combinations: 5 screens × 320, 390, 1200 CSS px × light/dark |
+| Mobile composer placement | Stays above navigation without covering result controls |
+| Web production dependency audit | 0 reported vulnerabilities from `npm audit --omit=dev` |
+| Native preservation | No changes under `native/` or `src/native/` |
+
+The latest simplified Alex Morgan header and masked card overview are preserved. The reusable payment-card story retains reveal/freeze controls; the product card screen intentionally omits them.
+
+Interaction checks cover period changes and category drill-down; search combined with filters and empty-state reset; transaction detail dialogs; transfer amount validation, recipient selection, editing and acknowledgement reset; immutable simulated receipts and download; conversion preview; chat stop/retry and retained drafts. Controlled modal composition was corrected after a development warning, then tested for open/close/Escape and focus return.
+
+Product screenshots and layout measurements:
+
+- [Assistant](review/product-assistant.jpg)
+- [Spending conversation](review/product-spending.jpg)
+- [Transfer review](review/product-transfer.jpg)
+- [Activity](review/product-activity.jpg)
+- [Cards](review/product-cards.jpg)
+- [Responsive measurements](review/product-checks.json)
+
+The app and workshop are lazy-loaded separately. The product-specific JS is about 20 kB before gzip; it also requires shared React/HeroUI chunks and shared CSS, so this is not a total first-load figure. Removing the duplicate component CSS import leaves one shared stylesheet plus small app/workshop styles. No runtime dependencies were added. GitHub Actions now runs token checks, tests and the web build; local results do not alone establish hosted CI success.
+
+The layout sweep checks rendering and horizontal overflow, not every assistive-technology or interaction combination. A balance-card icon target intentionally extends 8 px into its internal padding; this is inside the card and excluded from content-overflow flags. No simulator or physical mobile-browser keyboard session was configured. Remaining package distribution, localization and assistive-technology checks are described in [FINAL-REVIEW.md](FINAL-REVIEW.md).
+
+---
+
+# Historical Pass 2 validation
 
 Verified 25 October 2026 against `code-scalability`, which builds on the separately pushed `visual-refactor` branch.
 

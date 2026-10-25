@@ -168,3 +168,16 @@ Pass 2: Code Quality & Scalability
 Review and refactor the implementation as a design engineer would when handing off a design system to developers. Ensure the code is clean, modular, reusable, maintainable, accessible, and scalable, and most importantly simple and not slop. You shouldn't be making things complicated and bloat code where same outcome can be achieved simply. Follow best practices, and ensure the architecture supports future extensions without unnecessary complexity.
 continue
 ```
+
+## Final review and mobile web product screens
+
+```text
+Do a final Review closely and benchmark against public lib that are well reputed among devs To make sure ours is scalable and all.
+Build a few polished finance and chat screens(mobile) using the existing design system to demonstrate how its components work together in a real product. Implement them in React + TypeScript for the web, with working interactions and responsive layouts. Also the current background gray with a green tint is too dark. Make it very subtle, a very light gray, but with much less green tint
+Reuse the existing tokens and components. Keep screen-specific logic separate and simple. Prioritize the web experience; preserve the React Native work without expanding it.
+use mobbin mcp to understand the ux of other apps, but this is a chat first app so there should be chat screens with agent responses in UI.
+```
+
+### Follow-up preference
+
+The user chose **“Preserve the latest version”** when asked whether to keep the simplified Alex Morgan header and product card screen without reveal/freeze controls. These preferences apply to the product examples; the reusable library controls remain available.

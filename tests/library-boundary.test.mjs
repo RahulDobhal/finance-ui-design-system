@@ -55,7 +55,7 @@ function dependencies(entry, seen = new Set()) {
       );
       const relative = path.relative(root, resolved.resolvedFileName);
       assert.ok(
-        !/(^|\/)(workshop|data)(\/|$)/.test(relative),
+        !/(^|\/)(workshop|data|product)(\/|$)/.test(relative),
         `Product depends on demo/catalog module: ${relative}`,
       );
       dependencies(relative, seen);

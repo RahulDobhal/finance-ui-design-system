@@ -1,5 +1,3 @@
-@import "./components/styles.css";
-
 /* Workshop shell, examples, navigation and preview layouts only. */
 
 .workshop {
@@ -422,8 +420,8 @@
   border-radius: 36px;
   background: color-mix(
     in srgb,
-    var(--background) 94%,
-    var(--accent-soft-foreground)
+    var(--surface) 60%,
+    var(--background)
   );
   box-shadow: var(--elevation-raised);
   position: relative;

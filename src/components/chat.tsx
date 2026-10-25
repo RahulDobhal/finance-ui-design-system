@@ -399,7 +399,7 @@ export function ChatThread({
 }: ChatThreadProps) {
   const messageList = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLTextAreaElement>(null);
-  const follow = useRef(true);
+  const follow = useRef(messages.length === 0);
   const currentActivity =
     status === "error" || status === "stopped" || status === "completed"
       ? status
@@ -419,10 +419,12 @@ export function ChatThread({
   }
   return (
     <section className="chat-thread" aria-label="Conversation">
-      <div className="thread-heading">
-        <h3>{title}</h3>
-        {subtitle && <span className="micro muted">{subtitle}</span>}
-      </div>
+      {title && (
+        <div className="thread-heading">
+          <h3>{title}</h3>
+          {subtitle && <span className="micro muted">{subtitle}</span>}
+        </div>
+      )}
       <div
         className="sr-only"
         role="status"

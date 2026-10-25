@@ -1,3 +1,4 @@
+import "./styles.css";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@heroui/react";
 import {
@@ -198,6 +199,9 @@ function App() {
             )}
           </div>
           <div className="row">
+            <a className="product-demo-link small" href="#Product%2FAssistant">
+              Product demo ↗
+            </a>
             <span className="adapter-label">
               <span />
               Browser catalog

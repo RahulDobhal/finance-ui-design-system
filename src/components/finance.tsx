@@ -143,8 +143,9 @@ export function AmountInput({
   availableBalance,
   disabled = false,
   error = false,
+  errorMessage,
   label = "You send",
-}: AmountInputProps) {
+}: AmountInputProps & { errorMessage?: string }) {
   const id = useId();
   const invalid =
     error || (value !== "" && parseMinor(value, currency) === null);
@@ -178,8 +179,8 @@ export function AmountInput({
         <div id={id + "-help"} className="small muted">
           {invalid ? (
             <span className="danger">
-              Enter an amount with up to {currencyDigits(currency)} decimal
-              places.
+              {errorMessage ||
+                `Enter an amount with up to ${currencyDigits(currency)} decimal places.`}
             </span>
           ) : (
             availableBalance && (
