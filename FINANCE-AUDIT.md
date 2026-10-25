@@ -8,9 +8,9 @@ HeroUI Native core is a useful foundation for forms, selection, overlays and gen
 
 ## Foundations
 
-The canonical token source has a primitive palette and separate semantic aliases for both themes. It includes color roles for surface, field, focus, status, signed money, balance surfaces and five chart series. Non-color scales include 10 typography roles, 11 spacing steps, 7 radius values, 4 elevation levels, motion duration/easing, opacity, touch targets, borders and layer order.
+The canonical token source has a primitive palette and 25 semantic roles per theme: shared surfaces and foregrounds, actions, focus, status, five chart series and the overlay scrim. Non-color scales include 10 typography roles sharing 5 sizes and 3 weights, 11 spacing steps, 7 radius values, motion duration/easing, opacity, touch targets and layer order. Decorative elevation is disabled; library compatibility aliases do not add independent semantic colors.
 
-Typography uses readable body text and tabular numerals. Native uses the platform system font. A 4-point spacing base and 44-point native minimum touch target underpin the component mappings. Semantic aliases generate both web variables and native CSS; reusable native additions read spacing, typography and radius directly from the generated TypeScript tokens.
+Typography uses bundled Inter and Geist Mono: Inter for UI and large balances, Geist Mono for smaller numeric values. A 4-point spacing base and 48-point/dp shared minimum touch target underpin the component mappings. Semantic aliases generate both web variables and native CSS; reusable native additions read spacing, typography and radius directly from the generated TypeScript tokens.
 
 ## Existing HeroUI core
 
@@ -43,7 +43,7 @@ Upstream APIs are preserved. The browser displays supported HeroUI React counter
 | TransferTimeline | Typography, status, step structure | Created, processing, received or needs-attention states |
 | PaymentCard | Card, Button, Switch | Mask/reveal test details and freeze controls |
 | SpendingSummary | Card, LineChart, SegmentedControl, MoneyText | Period comparison and spending trends |
-| LimitMeter | ProgressMeter, MoneyText | Used and remaining transfer limits |
+| LimitMeter | Slider, MoneyText | Used and remaining transfer limits |
 | VerificationStatus | Card, status text, Button | Not verified, in review, verified, needs attention |
 | TransferReview | RecipientRow, ExchangeQuote, FeeBreakdown, ConfirmationAction | Explicit review before demo confirmation |
 | EmptyState | Surface, typography, Button | Missing activity with a useful next action |
@@ -89,3 +89,9 @@ All 26 additions have browser stories and native implementations. Native and bro
 - Locale/RTL, dynamic type, screen-reader navigation, safe areas, gesture conflicts and keyboard/date-picker behavior require testing on iOS and Android devices. The browser adapter cannot establish native parity.
 
 The audit and corresponding stories are also available in the workshop under **Finance coverage** and **Mobbin benchmarks**.
+
+## October 25 restyle and chat extension
+
+The 0.2 revision adds 7 chat components: ThinkingIndicator, ThinkingPanel, ResponseFeedback, AgentResponse, UserQuery, PromptInput and ChatThread. Every addition has a browser story and native implementation. A sixth pattern composes the chat thread. Total inventory: 72 component stories and 6 patterns.
+
+Pass 1 uses green primary buttons, contrasting secondary buttons, neutral filled surfaces, sharp corners and 12/18 px icon/text padding. The balance area is quiet while the action area carries the stronger green. Chat follows the supplied HextaUI reference, with compact progress disclosures and open assistant responses. See [HANDOFF.md](HANDOFF.md) for visual contracts and platform limitations, and [VALIDATION.md](VALIDATION.md) for current test evidence. The separate code-quality/scalability pass is still pending.
