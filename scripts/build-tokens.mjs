@@ -75,13 +75,6 @@ function typeTheme(native = false) {
   );
 }
 css += typeTheme();
-fs.writeFileSync(new URL("generated.css", dir), css);
-fs.writeFileSync(
-  new URL("tokens.ts", dir),
-  "// Generated from tokens.json\nexport const tokens = " +
-    JSON.stringify(t, null, 2) +
-    " as const;\n",
-);
 let native =
   "/* Generated from shared tokens.json. Import AFTER heroui-native/styles. */\n@layer theme {\n";
 for (const [theme, values] of Object.entries(t.themes)) {
@@ -94,7 +87,7 @@ native += typeTheme(true);
 native += `@layer components {
  .surface__root, .surface__background { border-curve: continuous; border-radius: ${t.radius.lg}px; }
  .surface__root { padding: ${t.padding.card}px; box-shadow: none; }
- .button__root { min-height: ${t.touch.minimum}px; height: auto; min-width: ${t.touch.minimum}px; padding-inline: ${((t.touch.minimum-t.typography.label.lineHeight)/2)*1.5}px; padding-block: ${(t.touch.minimum-t.typography.label.lineHeight)/2}px; gap: ${t.spacing[2]}px; }
+ .button__root { min-height: ${t.touch.minimum}px; height: auto; min-width: ${t.touch.minimum}px; padding-inline: ${((t.touch.minimum - t.typography.label.lineHeight) / 2) * 1.5}px; padding-block: ${(t.touch.minimum - t.typography.label.lineHeight) / 2}px; gap: ${t.spacing[2]}px; }
  .button__root, .button__background { border-curve: continuous; border-radius: ${t.radius.sm}px; }
  .button__root--variant-secondary { background-color: var(--secondary); border-width: 0px; }
  .button__label--variant-secondary { color: var(--secondary-foreground); }
@@ -136,5 +129,33 @@ native += `@layer components {
 
 }
 `;
-fs.writeFileSync(new URL("../native/theme.css", dir), native);
-console.log("Generated web CSS, TypeScript tokens and HeroUI Native theme.");
+const outputs = new Map([
+  [new URL("generated.css", dir), css],
+  [
+    new URL("tokens.ts", dir),
+    "// Generated from tokens.json\nexport const tokens = " +
+      JSON.stringify(t, null, 2) +
+      " as const;\n",
+  ],
+  [new URL("../native/theme.css", dir), native],
+]);
+
+if (process.argv.includes("--check")) {
+  const stale = [...outputs].filter(
+    ([file, contents]) =>
+      !fs.existsSync(file) || fs.readFileSync(file, "utf8") !== contents,
+  );
+  if (stale.length) {
+    console.error(
+      "Generated tokens are missing or stale:\n" +
+        stale.map(([file]) => "- " + file.pathname).join("\n") +
+        "\nRun npm run tokens and commit the generated files.",
+    );
+    process.exitCode = 1;
+  } else {
+    console.log("Generated tokens are up to date.");
+  }
+} else {
+  for (const [file, contents] of outputs) fs.writeFileSync(file, contents);
+  console.log("Generated web CSS, TypeScript tokens and HeroUI Native theme.");
+}

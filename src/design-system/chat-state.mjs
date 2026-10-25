@@ -23,8 +23,6 @@ export const activityLabels = {
 };
 /** @type {Activity[]} */
 export const activitySteps = ["thinking", "searching", "analyzing", "writing"];
-export const demoResponse =
-  "Your sample transactions include transfers, card payments and subscriptions. Review the transaction list to see amounts and dates. This is a local interface demo; no account data was accessed.";
 /** @type {ChatState} */
 export const initialChat = {
   messages: [],
@@ -97,4 +95,22 @@ export function chatReducer(state, action) {
     default:
       return state;
   }
+}
+
+/**
+ * A single announcement channel per thread prevents nested live regions repeating updates.
+ * @param {ChatState["status"]} status
+ * @param {Activity} activity
+ * @param {readonly ChatMessage[]} messages
+ */
+export function chatAnnouncement(status, activity, messages) {
+  if (status === "generating") return activityLabels[activity];
+  if (status === "error") return "Response interrupted. Your query is saved.";
+  if (status === "stopped") return "Response stopped.";
+  if (status === "completed")
+    return (
+      [...messages].reverse().find((message) => message.role === "agent")
+        ?.text || "Response ready."
+    );
+  return "";
 }

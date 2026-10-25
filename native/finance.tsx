@@ -6,7 +6,6 @@ import {
   ScrollView,
   StyleSheet,
   Platform,
-  Alert,
   type TextProps,
 } from "react-native";
 import {
@@ -20,20 +19,51 @@ import {
   Avatar,
   Switch,
   Checkbox,
-  Separator,
   Slider,
 } from "./base";
 import { useUniwind } from "uniwind";
 import Svg, { Polyline, Line, Circle } from "react-native-svg";
 import DateTimePicker from "@react-native-community/datetimepicker";
-import * as Clipboard from "expo-clipboard";
 import { tokens } from "../src/design-system/tokens";
 import {
   formatMoney,
   parseMinor,
   currencyDigits,
-  makeQuote,
 } from "../src/design-system/money.mjs";
+
+import {
+  boundedProgress,
+  assertStepper,
+  chartGeometry,
+  confirmTransfer,
+  dateValue,
+  limitProgress,
+  localDate,
+  nextAmount,
+  reviewIdentity,
+} from "../src/design-system/finance-model.mjs";
+import { useQuoteProblem } from "../src/design-system/useQuoteProblem";
+import type {
+  AccountDetailsProps,
+  AmountInputProps,
+  BalanceCardProps,
+  ChartPoint,
+  ConfirmationActionProps,
+  CurrencySelectorProps,
+  DatePickerProps,
+  LimitMeterProps,
+  PaymentCardProps,
+  ReceiptProps,
+  Recipient,
+  SegmentedControlProps,
+  SpendingSummaryProps,
+  StepperProps,
+  TimelineStep,
+  Transaction,
+  TransferQuote,
+  TransferReviewProps,
+  VerificationState,
+} from "../src/design-system/finance-types";
 
 type Theme = typeof tokens.themes.light | typeof tokens.themes.dark;
 const sp = tokens.spacing,
@@ -79,14 +109,16 @@ function Row({ children }: { children: React.ReactNode }) {
   return <View style={s.row}>{children}</View>;
 }
 export function MoneyText({
-  minor = 1284500,
-  currency = "USD",
+  minor,
+  currency,
+  locale = "en-US",
   hidden = false,
   signed = false,
   large = false,
 }: {
-  minor?: number;
-  currency?: string;
+  minor: number;
+  currency: string;
+  locale?: string;
   hidden?: boolean;
   signed?: boolean;
   large?: boolean;
@@ -101,37 +133,55 @@ export function MoneyText({
         fontFamily: large ? "Inter_500Medium" : "GeistMono_400Regular",
       }}
     >
-      {hidden ? "••••••" : formatMoney(minor, currency, "en-US", signed)}
+      {hidden ? "••••••" : formatMoney(minor, currency, locale, signed)}
     </FinanceText>
   );
 }
+
 export function CurrencySelector({
   value,
   onChange,
+  currencies,
+  label = "Currency",
   disabled = false,
   size = "md",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  size?: "sm" | "md";
-}) {
+}: CurrencySelectorProps) {
   return (
     <Select
       value={{ value, label: value }}
       onValueChange={(v) => v && onChange(v.value)}
       isDisabled={disabled}
     >
-      <Select.Trigger accessibilityLabel="Currency" style={size === "sm" ? { minHeight: 40, paddingVertical: 10, paddingLeft: 15, paddingRight: 10, gap: sp[1] } : undefined}>
-        <Select.Value placeholder="Choose an option" />
-        <Select.TriggerIndicator iconProps={{ size: size === "sm" ? tokens.typography.label.lineHeight : tokens.typography.body.lineHeight }} />
+      <Select.Trigger
+        accessibilityLabel={label}
+        style={
+          size === "sm"
+            ? {
+                minHeight: 40,
+                paddingVertical: 10,
+                paddingLeft: 15,
+                paddingRight: 10,
+                gap: sp[1],
+              }
+            : undefined
+        }
+      >
+        <Select.Value placeholder="Choose a currency" />
+        <Select.TriggerIndicator
+          iconProps={{
+            size:
+              size === "sm"
+                ? tokens.typography.label.lineHeight
+                : tokens.typography.body.lineHeight,
+          }}
+        />
       </Select.Trigger>
       <Select.Portal>
         <Select.Overlay />
         <Select.Content presentation="dialog">
           <Select.Close />
-          <Select.ListLabel>Select currency</Select.ListLabel>
-          {["USD", "GBP", "EUR", "INR", "JPY", "KWD"].map((c) => (
+          <Select.ListLabel>{label}</Select.ListLabel>
+          {currencies.map((c) => (
             <Select.Item key={c} value={c} label={c}>
               <Select.ItemLabel />
               <Select.ItemIndicator />
@@ -142,33 +192,32 @@ export function CurrencySelector({
     </Select>
   );
 }
+
 export function AmountInput({
   value,
   onChange,
   currency,
   onCurrency,
+  currencies,
+  availableBalance,
   disabled = false,
-  forceError = false,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  currency: string;
-  onCurrency: (v: string) => void;
-  disabled?: boolean;
-  forceError?: boolean;
-}) {
-  const invalid = forceError || parseMinor(value, currency) === null;
+  error = false,
+  label = "You send",
+}: AmountInputProps) {
+  const invalid =
+    error || (value !== "" && parseMinor(value, currency) === null);
   return (
     <Card>
       <Stack>
         <Row>
           <FinanceText tone="muted" kind="body-small">
-            You send
+            {label}
           </FinanceText>
           <CurrencySelector
             size="sm"
             value={currency}
             onChange={onCurrency}
+            currencies={currencies}
             disabled={disabled}
           />
         </Row>
@@ -177,8 +226,10 @@ export function AmountInput({
           <Input
             value={value}
             onChangeText={onChange}
-            keyboardType="decimal-pad"
-            accessibilityLabel="Send amount"
+            keyboardType={
+              currencyDigits(currency) === 0 ? "number-pad" : "decimal-pad"
+            }
+            accessibilityLabel={label}
             style={{
               fontSize: tokens.typography.balance.size,
               fontFamily: "Inter_500Medium",
@@ -192,22 +243,34 @@ export function AmountInput({
             Enter up to {currencyDigits(currency)} decimal places.
           </FieldError>
         </TextField>
-        <FinanceText kind="caption" tone="muted">
-          Illustrative amount. No money moves.
-        </FinanceText>
+        {availableBalance && (
+          <FinanceText kind="caption" tone="muted">
+            Available balance{" "}
+            {formatMoney(availableBalance.minor, availableBalance.currency)}
+          </FinanceText>
+        )}
       </Stack>
     </Card>
   );
 }
+
 export function BalanceCard({
-  currency = "USD",
-  onSend = () => {},
-}: {
-  currency?: string;
-  onSend?: () => void;
-}) {
-  const [hidden, setHidden] = useState(false),
-    c = useFinanceTheme();
+  balance,
+  hidden,
+  onHiddenChange,
+  onTransfer,
+  onRequest,
+  onAdd,
+  onConvert,
+  description,
+}: BalanceCardProps) {
+  const c = useFinanceTheme();
+  const actions = [
+    { icon: "↗", label: "Transfer", onPress: onTransfer },
+    { icon: "↓", label: "Request", onPress: onRequest },
+    { icon: "+", label: "Add", onPress: onAdd },
+    { icon: "↔", label: "Convert", onPress: onConvert },
+  ];
   return (
     <Card
       style={{
@@ -225,21 +288,17 @@ export function BalanceCard({
             variant="ghost"
             size="sm"
             accessibilityLabel={hidden ? "Show balance" : "Hide balance"}
-            onPress={() => setHidden(!hidden)}
+            onPress={() => onHiddenChange(!hidden)}
           >
             {hidden ? "Show" : "Hide"}
           </Button>
         </Row>
-        <FinanceText
-          kind="balance"
-          accessibilityLabel={hidden ? "Balance hidden" : undefined}
-          style={{ fontVariant: ["tabular-nums"] }}
-        >
-          {hidden ? "••••••" : formatMoney(1284500, currency)}
-        </FinanceText>
-        <FinanceText tone="muted" kind="caption">
-          Available across your {currency} accounts
-        </FinanceText>
+        <MoneyText {...balance} hidden={hidden} large />
+        {description && (
+          <FinanceText tone="muted" kind="caption">
+            {description}
+          </FinanceText>
+        )}
       </View>
       <View
         style={{
@@ -249,23 +308,12 @@ export function BalanceCard({
           gap: sp[1],
         }}
       >
-        {[
-          ["↗", "Transfer"],
-          ["↓", "Request"],
-          ["+", "Add"],
-          ["↔", "Convert"],
-        ].map(([icon, label]) => (
+        {actions.map((action) => (
           <Button
-            key={label}
+            key={action.label}
             variant="ghost"
-            onPress={() =>
-              label === "Transfer"
-                ? onSend()
-                : Alert.alert(
-                    label,
-                    "Demo action selected. No money will move.",
-                  )
-            }
+            isDisabled={!action.onPress}
+            onPress={action.onPress}
             style={{
               flex: 1,
               flexDirection: "column",
@@ -274,11 +322,11 @@ export function BalanceCard({
               paddingHorizontal: sp[1],
             }}
           >
-            <FinanceText tone="accent-soft" kind="title">
-              {icon}
+            <FinanceText tone="accent-soft" kind="label">
+              {action.icon}
             </FinanceText>
             <FinanceText tone="accent-soft" kind="caption">
-              {label}
+              {action.label}
             </FinanceText>
           </Button>
         ))}
@@ -286,235 +334,238 @@ export function BalanceCard({
     </Card>
   );
 }
-const txs = [
-  {
-    name: "Alex Morgan",
-    detail: "Transfer received",
-    minor: 245000,
-    status: "Completed",
-  },
-  {
-    name: "North Studio",
-    detail: "Card payment",
-    minor: -12840,
-    status: "Completed",
-  },
-  {
-    name: "Jamie Chen",
-    detail: "Bank transfer",
-    minor: -50000,
-    status: "Pending",
-  },
-];
+
 export function TransactionRow({
-  item = txs[0],
-  currency = "USD",
-  onPress = () => {},
+  item,
+  onPress,
 }: {
-  item?: (typeof txs)[number];
-  currency?: string;
-  onPress?: () => void;
+  item: Transaction;
+  onPress?: (id: string) => void;
 }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={onPress}
-      style={[s.row, { paddingVertical: sp[4], minHeight: 64 }]}
-    >
+  const content = (
+    <>
       <Avatar alt={item.name} size="sm">
         <Avatar.Fallback>
-          {item.name
-            .split(" ")
-            .map((n) => n[0])
-            .join("")}
+          {item.initials ||
+            item.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")}
         </Avatar.Fallback>
       </Avatar>
       <View style={{ flex: 1, gap: sp[1] }}>
         <FinanceText kind="label">{item.name}</FinanceText>
         <FinanceText kind="caption" tone="muted">
-          {item.detail} · {item.status}
+          {item.detail}
         </FinanceText>
       </View>
-      <MoneyText minor={item.minor} currency={currency} signed />
+      <View style={{ alignItems: "flex-end", gap: sp[1] }}>
+        <MoneyText {...item.amount} signed />
+        {item.status !== "completed" && (
+          <FinanceText
+            kind="caption"
+            tone={item.status === "failed" ? "danger" : "warning"}
+          >
+            {item.status === "pending" ? "Pending" : "Failed"}
+          </FinanceText>
+        )}
+      </View>
+    </>
+  );
+  const style = [s.row, { paddingVertical: sp[4], minHeight: 64 }];
+  return onPress ? (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => onPress(item.id)}
+      style={style}
+    >
+      {content}
     </Pressable>
+  ) : (
+    <View style={style}>{content}</View>
   );
 }
+
 export function TransactionList({
-  currency = "USD",
-  empty = false,
+  items,
+  onItemPress,
+  onEmptyAction,
 }: {
-  currency?: string;
-  empty?: boolean;
+  items: readonly Transaction[];
+  onItemPress?: (id: string) => void;
+  onEmptyAction?: () => void;
 }) {
-  const [added, setAdded] = useState(false);
-  if (empty && !added) return <EmptyState onAction={() => setAdded(true)} />;
-  return (
-    <View>
-      {txs.map((t, i) => (
-        <View key={t.name}>
-          <TransactionRow
-            currency={currency}
-            item={t}
-            onPress={() =>
-              Alert.alert(
-                t.name,
-                `${t.status}: ${formatMoney(t.minor, currency)}`,
-              )
-            }
-          />
-          {i < txs.length - 1 && <Separator />}
-        </View>
+  return items.length ? (
+    <Stack>
+      {items.map((item) => (
+        <TransactionRow key={item.id} item={item} onPress={onItemPress} />
       ))}
-    </View>
+    </Stack>
+  ) : (
+    <EmptyState onAction={onEmptyAction} />
   );
 }
+
 export function RecipientRow({
+  recipient,
   selected = false,
-  onPress = () => {},
-  accountCurrency = "GBP",
+  onPress,
 }: {
+  recipient: Recipient;
   selected?: boolean;
   onPress?: () => void;
-  accountCurrency?: string;
 }) {
   const c = useFinanceTheme();
-  return (
+  const content = (
+    <>
+      <Avatar alt={recipient.name}>
+        <Avatar.Fallback>
+          {recipient.initials ||
+            recipient.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")}
+        </Avatar.Fallback>
+      </Avatar>
+      <View style={{ flex: 1, gap: sp[1] }}>
+        <FinanceText kind="label">{recipient.name}</FinanceText>
+        <FinanceText kind="caption" tone="muted">
+          {recipient.accountCurrency} account · •• {recipient.accountLast4}
+        </FinanceText>
+      </View>
+      {selected && <FinanceText tone="success">✓</FinanceText>}
+    </>
+  );
+  const style = [
+    s.row,
+    {
+      padding: sp[3],
+      borderRadius: rad.md,
+      backgroundColor: selected ? c["accent-soft"] : c.surface,
+    },
+  ];
+  return onPress ? (
     <Pressable
       accessibilityRole="button"
       accessibilityState={{ selected }}
       onPress={onPress}
-      style={[
-        s.row,
-        {
-          borderWidth: 0,
-          borderColor: selected ? c.accent : c["surface-tertiary"],
-          borderRadius: rad.md,
-          borderCurve: "continuous",
-          padding: sp[4],
-          minHeight: 64,
-        },
-      ]}
+      style={style}
     >
-      <Avatar alt="Jamie Chen">
-        <Avatar.Fallback>JC</Avatar.Fallback>
-      </Avatar>
-      <View style={{ flex: 1 }}>
-        <FinanceText kind="label">Jamie Chen</FinanceText>
-        <FinanceText kind="caption" tone="muted">
-          {accountCurrency} account · ending 2841
-        </FinanceText>
-      </View>
-      <FinanceText>{selected ? "✓" : "›"}</FinanceText>
+      {content}
     </Pressable>
+  ) : (
+    <View style={style}>{content}</View>
   );
 }
-export function AccountDetails() {
-  const [copied, setCopied] = useState(false);
+
+export function AccountDetails({ account, onCopy }: AccountDetailsProps) {
+  const [copiedValue, setCopiedValue] = useState<string | null>(null),
+    [error, setError] = useState("");
   return (
     <Card>
       <Stack>
         <FinanceText kind="subtitle">Account details</FinanceText>
         {[
-          ["Account holder", "Alex Morgan"],
-          ["IBAN", "GB82 WEST 1234 5698 7654 32"],
-          ["BIC / SWIFT", "WESTGB2L"],
-        ].map(([a, b]) => (
-          <View key={a} style={{ gap: sp[1] }}>
+          ["Account holder", account.holder],
+          ["IBAN", account.iban],
+          ["BIC / SWIFT", account.bic],
+        ].map(([label, value]) => (
+          <View key={label} style={{ gap: sp[1] }}>
             <FinanceText kind="caption" tone="muted">
-              {a}
+              {label}
             </FinanceText>
-            <FinanceText selectable>{b}</FinanceText>
+            <FinanceText selectable>{value}</FinanceText>
           </View>
         ))}
-        <Button
-          variant="secondary"
-          onPress={async () => {
-            await Clipboard.setStringAsync("GB82 WEST 1234 5698 7654 32");
-            setCopied(true);
-          }}
-        >
-          {copied ? "IBAN copied ✓" : "Copy IBAN"}
-        </Button>
-      </Stack>
-    </Card>
-  );
-}
-export function FeeBreakdown({
-  minor = 100000,
-  currency = "USD",
-}: {
-  minor?: number;
-  currency?: string;
-}) {
-  return (
-    <Stack>
-      {[
-        ["Amount converted", Math.max(0, minor - 250)],
-        ["Fee included", Math.min(minor, 250)],
-        ["Total deducted", minor],
-      ].map(([a, b]) => (
-        <Row key={a}>
-          <FinanceText kind="body-small" tone="muted">
-            {a}
-          </FinanceText>
-          <MoneyText currency={currency} minor={Number(b)} />
-        </Row>
-      ))}
-      <FinanceText kind="caption" tone="muted">
-        Illustrative fixed fee; no live pricing.
-      </FinanceText>
-    </Stack>
-  );
-}
-export function ExchangeQuote({
-  amount = "1000.00",
-  currency = "USD",
-}: {
-  amount?: string;
-  currency?: string;
-}) {
-  const to = currency === "GBP" ? "EUR" : "GBP",
-    q = makeQuote(parseMinor(amount, currency) ?? 0, {
-      from: currency,
-      to,
-      rateNumerator: currency === "GBP" ? 119 : 83,
-      feeMinor: 250,
-    });
-  return (
-    <Card>
-      <Stack>
-        <FinanceText tone="muted">Recipient gets</FinanceText>
-        <MoneyText minor={q.receiveMinor} currency={to} large />
-        <FinanceText kind="caption" tone="muted">
-          {currency === "GBP" ? "1.19" : "0.83"} {to} per {currency} · demo rate
-        </FinanceText>
-        <Separator />
-        <Row>
-          <FinanceText kind="caption">Fee included</FinanceText>
-          <MoneyText minor={q.feeMinor} currency={currency} />
-        </Row>
-        {!q.valid && (
-          <FinanceText kind="caption" tone="danger">
-            Amount must exceed the fee.
+        {onCopy && (
+          <Button
+            variant="secondary"
+            onPress={async () => {
+              try {
+                await onCopy(account.iban);
+                setCopiedValue(account.iban);
+                setError("");
+              } catch {
+                setError("Unable to copy. Select the displayed IBAN to copy.");
+              }
+            }}
+          >
+            {copiedValue === account.iban ? "IBAN copied ✓" : "Copy IBAN"}
+          </Button>
+        )}
+        {!!error && (
+          <FinanceText accessibilityRole="alert" tone="danger" kind="caption">
+            {error}
           </FinanceText>
         )}
       </Stack>
     </Card>
   );
 }
-export function TransferTimeline({ status = "pending" }: { status?: string }) {
-  const done = status === "completed",
-    failed = status === "error",
-    c = useFinanceTheme();
+
+export function FeeBreakdown({ quote }: { quote: TransferQuote }) {
+  const rows = [
+    {
+      label: "Amount converted",
+      amount: {
+        minor: Math.max(0, quote.send.minor - quote.fee.minor),
+        currency: quote.send.currency,
+      },
+    },
+    { label: "Fee included", amount: quote.fee },
+    { label: "Total deducted", amount: quote.send },
+  ];
   return (
     <Stack>
-      {[
-        "Transfer created",
-        failed ? "Transfer needs attention" : "Money on its way",
-        done ? "Received by Jamie" : "Estimated arrival",
-      ].map((label, i) => (
-        <View key={label} style={{ flexDirection: "row", gap: sp[3] }}>
+      {rows.map((row) => (
+        <Row key={row.label}>
+          <FinanceText kind="body-small" tone="muted">
+            {row.label}
+          </FinanceText>
+          <MoneyText {...row.amount} />
+        </Row>
+      ))}
+    </Stack>
+  );
+}
+
+export function ExchangeQuote({ quote }: { quote: TransferQuote }) {
+  const problem = useQuoteProblem(quote);
+  return (
+    <Card>
+      <Stack>
+        <FinanceText tone="muted">Recipient gets</FinanceText>
+        <MoneyText {...quote.receive} large />
+        <FinanceText kind="caption" tone="muted">
+          {quote.rate.numerator / quote.rate.denominator}{" "}
+          {quote.receive.currency} per {quote.send.currency}
+        </FinanceText>
+        <Row>
+          <FinanceText kind="caption">Fee included</FinanceText>
+          <MoneyText {...quote.fee} />
+        </Row>
+        {problem && (
+          <FinanceText kind="caption" tone="danger">
+            {problem}
+          </FinanceText>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+
+export function TransferTimeline({
+  steps,
+}: {
+  steps: readonly TimelineStep[];
+}) {
+  const c = useFinanceTheme();
+  return (
+    <Stack>
+      {steps.map((step) => (
+        <View key={step.id} style={{ flexDirection: "row", gap: sp[3] }}>
           <View
+            accessible={false}
             style={{
               width: 32,
               height: 32,
@@ -522,27 +573,36 @@ export function TransferTimeline({ status = "pending" }: { status?: string }) {
               alignItems: "center",
               justifyContent: "center",
               backgroundColor:
-                i === 0 || done ? c["accent-soft"] : c["surface-secondary"],
+                step.status === "completed"
+                  ? c["accent-soft"]
+                  : c["surface-secondary"],
             }}
           >
-            <FinanceText tone={i === 0 || done ? "success" : "muted"}>
-              {i === 0 || done ? "✓" : "·"}
+            <FinanceText
+              tone={
+                step.status === "completed"
+                  ? "success"
+                  : step.status === "failed"
+                    ? "danger"
+                    : "muted"
+              }
+            >
+              {step.status === "completed"
+                ? "✓"
+                : step.status === "failed"
+                  ? "×"
+                  : "·"}
             </FinanceText>
           </View>
           <View style={{ flex: 1, gap: sp[1] }}>
-            <FinanceText kind="label">{label}</FinanceText>
+            <FinanceText
+              kind="label"
+              accessibilityLabel={`${step.label}, ${step.status}`}
+            >
+              {step.label}
+            </FinanceText>
             <FinanceText kind="caption" tone="muted">
-              {i === 0
-                ? "Today, 10:42 AM"
-                : i === 1
-                  ? failed
-                    ? "Try another funding method."
-                    : done
-                      ? "Completed at 10:43 AM."
-                      : "Processing with the recipient’s bank."
-                  : done
-                    ? "Today, 10:44 AM"
-                    : "Usually within a few minutes."}
+              {step.detail}
             </FinanceText>
           </View>
         </View>
@@ -550,9 +610,17 @@ export function TransferTimeline({ status = "pending" }: { status?: string }) {
     </Stack>
   );
 }
-export function PaymentCard() {
-  const [frozen, setFrozen] = useState(false),
-    [reveal, setReveal] = useState(false),
+
+export function PaymentCard(props: PaymentCardProps) {
+  return <PaymentCardContent key={JSON.stringify(props.card)} {...props} />;
+}
+function PaymentCardContent({
+  card,
+  frozen,
+  onFrozenChange,
+  disabled = false,
+}: PaymentCardProps) {
+  const [reveal, setReveal] = useState(false),
     c = useFinanceTheme();
   return (
     <Stack>
@@ -561,12 +629,11 @@ export function PaymentCard() {
           backgroundColor: frozen ? c["surface-secondary"] : c["accent-soft"],
           padding: tokens.padding.card,
           gap: sp[6],
-          opacity: 1,
         }}
       >
         <Row>
           <FinanceText tone="accent-soft-foreground" kind="subtitle">
-            Finance UI
+            {card.brand}
           </FinanceText>
           <FinanceText tone="muted">{frozen ? "Frozen" : "Active"}</FinanceText>
         </Row>
@@ -578,48 +645,57 @@ export function PaymentCard() {
             fontFamily: "GeistMono_400Regular",
           }}
         >
-          {reveal ? "4242 4242 4242 2841" : "•••• •••• •••• 2841"}
+          {reveal && card.number ? card.number : card.maskedNumber}
         </FinanceText>
         <Row>
           <FinanceText tone="muted" kind="caption">
-            Alex Morgan
+            {card.cardholder}
           </FinanceText>
           <FinanceText tone="muted" kind="caption">
-            08/29
+            {card.expiry}
           </FinanceText>
         </Row>
-        <FinanceText tone="muted" kind="caption">
-          Demo debit card
-        </FinanceText>
+        {card.description && (
+          <FinanceText tone="muted" kind="caption">
+            {card.description}
+          </FinanceText>
+        )}
       </Card>
-      <Row>
-        <FinanceText>Freeze card</FinanceText>
-        <Switch
-          hitSlop={12}
-          accessibilityLabel="Freeze card"
-          isSelected={frozen}
-          onSelectedChange={setFrozen}
-        />
-      </Row>
-      <Button variant="secondary" onPress={() => setReveal(!reveal)}>
-        {reveal ? "Hide" : "Reveal"} demo number
-      </Button>
+      {onFrozenChange && (
+        <Row>
+          <FinanceText>Freeze card</FinanceText>
+          <Switch
+            accessibilityLabel="Freeze card"
+            isSelected={frozen}
+            onSelectedChange={onFrozenChange}
+            isDisabled={disabled}
+          />
+        </Row>
+      )}
+      {card.number && (
+        <Button
+          variant="secondary"
+          isDisabled={disabled}
+          onPress={() => setReveal(!reveal)}
+        >
+          {reveal ? "Hide" : "Reveal"} number
+        </Button>
+      )}
     </Stack>
   );
 }
+
 export function SegmentedControl({
   value,
   onChange,
-  options = ["Week", "Month"],
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options?: string[];
-}) {
+  options,
+  label = "View selection",
+  disabled = false,
+}: SegmentedControlProps) {
   const c = useFinanceTheme();
   return (
     <View
-      accessibilityRole="radiogroup"
+      accessibilityLabel={label}
       style={{
         flexDirection: "row",
         gap: sp[1],
@@ -628,37 +704,41 @@ export function SegmentedControl({
         backgroundColor: c["surface-secondary"],
       }}
     >
-      {options.map((o) => (
+      {options.map((option) => (
         <Button
-          key={o}
+          key={option}
           variant="ghost"
-          accessibilityRole="radio"
-          accessibilityState={{ checked: value === o }}
-          onPress={() => onChange(o)}
+          accessibilityRole="button"
+          accessibilityState={{ selected: value === option, disabled }}
+          isDisabled={disabled}
+          onPress={() => onChange(option)}
           style={{
             flex: 1,
             borderRadius: rad.xs,
-            backgroundColor: value === o ? c.surface : "transparent",
+            backgroundColor: value === option ? c.surface : "transparent",
           }}
         >
-          <FinanceText kind="label">{o}</FinanceText>
+          <FinanceText kind="label">{option}</FinanceText>
         </Button>
       ))}
     </View>
   );
 }
-export function LineChart({ period = "Week" }: { period?: string }) {
+
+export function LineChart({
+  points,
+  label = "Trend",
+}: {
+  points: readonly ChartPoint[];
+  label?: string;
+}) {
   const c = useFinanceTheme(),
-    data =
-      period === "Week"
-        ? [120, 180, 90, 230, 160, 310, 260]
-        : [540, 700, 620, 810, 760, 980, 870],
-    max = Math.max(...data) * 1.15;
+    coords = chartGeometry(points),
+    summary = points
+      .map((point) => `${point.label}: ${point.value}`)
+      .join(", ");
   return (
-    <View
-      accessible
-      accessibilityLabel={`${period} spending. Values: ${data.join(", ")}`}
-    >
+    <View accessible accessibilityLabel={`${label}. ${summary || "No data"}`}>
       <Svg width="100%" height={150} viewBox="0 0 310 150">
         {[40, 85, 130].map((y) => (
           <Line
@@ -671,72 +751,79 @@ export function LineChart({ period = "Week" }: { period?: string }) {
           />
         ))}
         <Polyline
-          points={data
-            .map((n, i) => `${i * 48 + 8},${130 - (n / max) * 110}`)
-            .join(" ")}
+          points={coords.map((point) => `${point.x},${point.y}`).join(" ")}
           stroke={c["chart-1"]}
           strokeWidth={3}
           fill="none"
         />
-        {data.map((n, i) => (
-          <Circle
-            key={i}
-            cx={i * 48 + 8}
-            cy={130 - (n / max) * 110}
-            r={3}
-            fill={c["chart-1"]}
-          />
+        {coords.map((point, i) => (
+          <Circle key={i} cx={point.x} cy={point.y} r={3} fill={c["chart-1"]} />
         ))}
       </Svg>
       <FinanceText kind="caption" tone="muted">
-        {data.join(" · ")}
+        {summary || "No data"}
       </FinanceText>
     </View>
   );
 }
-export function SpendingSummary({ currency = "USD" }: { currency?: string }) {
-  const [p, setP] = useState("Week");
+
+export function SpendingSummary({
+  amount,
+  period,
+  onPeriodChange,
+  periods,
+  points,
+  description,
+}: SpendingSummaryProps) {
   return (
     <Card>
       <Stack>
         <Row>
           <FinanceText kind="subtitle">Spending</FinanceText>
-          <SegmentedControl value={p} onChange={setP} />
+          <SegmentedControl
+            value={period}
+            onChange={onPeriodChange}
+            options={periods}
+            label="Spending period"
+          />
         </Row>
-        <MoneyText
-          minor={p === "Week" ? 135000 : 598000}
-          currency={currency}
-          large
-        />
-        <FinanceText kind="caption" tone="muted">
-          {p === "Week" ? "This week" : "This month"} · 12% less than last
-          period
-        </FinanceText>
-        <LineChart period={p} />
+        <MoneyText {...amount} large />
+        {description && (
+          <FinanceText kind="caption" tone="muted">
+            {description}
+          </FinanceText>
+        )}
+        <LineChart points={points} label={`${period} spending`} />
       </Stack>
     </Card>
   );
 }
+
 export function ProgressMeter({
-  value = 65,
-  label = "Monthly limit",
+  value,
+  label = "Progress",
 }: {
-  value?: number;
+  value: number | null;
   label?: string;
 }) {
   const c = useFinanceTheme(),
-    v = Math.max(0, Math.min(100, value));
+    bounded = boundedProgress(value);
   return (
     <Stack>
       <Row>
-        <FinanceText kind="label">{label}</FinanceText>
-        <FinanceText kind="label">{v}%</FinanceText>
+        <FinanceText kind="caption">{label}</FinanceText>
+        <FinanceText kind="label">
+          {bounded === null ? "In progress" : `${Math.round(bounded)}%`}
+        </FinanceText>
       </Row>
       <View
-        accessible
         accessibilityRole="progressbar"
         accessibilityLabel={label}
-        accessibilityValue={{ min: 0, max: 100, now: v }}
+        accessibilityValue={
+          bounded === null
+            ? { text: "In progress" }
+            : { min: 0, max: 100, now: bounded }
+        }
         style={{
           height: 8,
           borderRadius: rad.xs,
@@ -746,9 +833,9 @@ export function ProgressMeter({
       >
         <View
           style={{
-            height: 8,
-            width: `${v}%`,
-            backgroundColor: c["chart-1"],
+            width: `${bounded ?? 0}%`,
+            height: "100%",
+            backgroundColor: c.accent,
             borderRadius: rad.xs,
           }}
         />
@@ -756,238 +843,339 @@ export function ProgressMeter({
     </Stack>
   );
 }
-export function LimitMeter({ currency = "USD" }: { currency?: string }) {
-  const [v, setV] = useState(65);
+
+export function LimitMeter({
+  used,
+  limit,
+  onUsedChange,
+  label = "Monthly transfer limit",
+  step = 1,
+}: LimitMeterProps) {
+  const progress = limitProgress(used, limit);
   return (
     <Card>
       <Stack>
-        <FinanceText kind="subtitle">Monthly transfer limit</FinanceText>
+        <FinanceText kind="subtitle">{label}</FinanceText>
         <Row>
-          <MoneyText minor={v * 10000} currency={currency} />
+          <MoneyText {...used} />
           <FinanceText tone="muted" kind="caption">
-            of {formatMoney(1000000, currency)}
+            of {formatMoney(limit.minor, limit.currency)}
           </FinanceText>
         </Row>
-        <ProgressMeter value={v} />
-        <FinanceText kind="caption" tone="muted">
-          {formatMoney((100 - v) * 10000, currency)} remaining
+        <ProgressMeter value={progress} label={label} />
+        <FinanceText tone="muted" kind="caption">
+          {formatMoney(Math.max(0, limit.minor - used.minor), limit.currency)}{" "}
+          remaining
         </FinanceText>
-        <Slider
-          value={v}
-          onChange={(value) => setV(Number(value))}
-          minValue={0}
-          maxValue={100}
-          accessibilityLabel="Adjust used limit"
-        >
-          <Label>Adjust used limit</Label>
-          <Slider.Output />
-          <Slider.Track>
-            <Slider.Fill />
-            <Slider.Thumb />
-          </Slider.Track>
-        </Slider>
+        {onUsedChange && (
+          <Slider
+            value={used.minor}
+            onChange={(value) => onUsedChange(Number(value))}
+            minValue={0}
+            maxValue={limit.minor}
+            step={step}
+            accessibilityLabel="Adjust used limit"
+          >
+            <Label>Adjust used limit</Label>
+            <Slider.Track>
+              <Slider.Fill />
+              <Slider.Thumb />
+            </Slider.Track>
+          </Slider>
+        )}
       </Stack>
     </Card>
   );
 }
+
 export function VerificationStatus({
-  status = "default",
+  status,
+  onAction,
+  description,
 }: {
-  status?: string;
+  status: VerificationState;
+  onAction?: () => void;
+  description?: string;
 }) {
-  const [requested, setRequested] = useState(false),
-    done = status === "completed";
+  const done = status === "verified",
+    error = status === "failed",
+    pending = status === "pending";
   return (
     <Card>
       <Stack>
         <FinanceText kind="subtitle">
           {done
             ? "Identity verified"
-            : requested
-              ? "Verification submitted"
-              : status === "error"
-                ? "Verification needs attention"
+            : error
+              ? "We couldn’t verify your details"
+              : pending
+                ? "Verification submitted"
                 : "Verify your identity"}
         </FinanceText>
-        <FinanceText kind="body-small" tone="muted">
+        {description && <FinanceText tone="muted">{description}</FinanceText>}
+        <FinanceText
+          kind="label"
+          tone={done ? "success" : error ? "danger" : "warning"}
+        >
           {done
-            ? "Your demo account is ready."
-            : requested
-              ? "Demo status: in review. No documents were uploaded."
-              : "Confirm your details to unlock higher transfer limits."}
+            ? "Verified"
+            : error
+              ? "Action needed"
+              : pending
+                ? "In review"
+                : "Not verified"}
         </FinanceText>
-        {!done && !requested && (
-          <Button onPress={() => setRequested(true)}>
-            Start demo verification
+        {!done && !pending && onAction && (
+          <Button onPress={onAction}>
+            {error ? "Try again" : "Start verification"}
           </Button>
         )}
       </Stack>
     </Card>
   );
 }
-export function ConfirmationAction({
+
+export function ConfirmationAction(props: ConfirmationActionProps) {
+  return <ConfirmationContent key={props.reviewKey} {...props} />;
+}
+function ConfirmationContent({
   onConfirm,
+  reviewKey,
   disabled = false,
-}: {
-  onConfirm: () => void;
-  disabled?: boolean;
-}) {
-  const [ack, setAck] = useState(false);
+  label = "Confirm transfer",
+  description,
+}: ConfirmationActionProps) {
+  const [acknowledgedKey, setAcknowledgedKey] = useState<string | null>(null),
+    ack = acknowledgedKey === reviewKey;
   return (
     <Stack>
-      <View style={{ flexDirection: "row", gap: sp[3], alignItems: "center" }}>
-        <Checkbox
-          hitSlop={12}
-          accessibilityLabel="I have checked the recipient and amount"
-          isSelected={ack}
-          onSelectedChange={setAck}
-          isDisabled={disabled}
-        />
+      <Pressable
+        accessible
+        accessibilityRole="checkbox"
+        accessibilityLabel="I have checked the recipient and amount"
+        accessibilityState={{ checked: ack, disabled }}
+        disabled={disabled}
+        onPress={() => setAcknowledgedKey(ack ? null : reviewKey)}
+        style={{
+          flexDirection: "row",
+          gap: sp[3],
+          alignItems: "center",
+          minHeight: tokens.touch.minimum,
+        }}
+      >
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        >
+          <Checkbox isSelected={ack} isDisabled={disabled} />
+        </View>
         <FinanceText kind="body-small" style={{ flex: 1 }}>
           I’ve checked the recipient and amount
         </FinanceText>
-      </View>
-      <Button isDisabled={!ack || disabled} onPress={onConfirm}>
-        Confirm demo transfer
+      </Pressable>
+      <Button
+        isDisabled={!ack || disabled}
+        onPress={() => {
+          if (ack && !disabled) onConfirm();
+        }}
+      >
+        {label}
       </Button>
-      <FinanceText kind="caption" tone="muted">
-        Demo only. No money will move.
-      </FinanceText>
+      {description && (
+        <FinanceText kind="caption" tone="muted">
+          {description}
+        </FinanceText>
+      )}
     </Stack>
   );
 }
+
 export function TransferReview({
-  amount = "1000.00",
-  currency = "USD",
-}: {
-  amount?: string;
-  currency?: string;
-}) {
-  const [sent, setSent] = useState(false),
-    minor = parseMinor(amount, currency);
-  return sent ? (
-    <Receipt currency={currency} minor={minor ?? 0} />
-  ) : (
+  quote,
+  recipient,
+  onConfirm,
+  disabled = false,
+  confirmLabel,
+  description,
+}: TransferReviewProps) {
+  const identity = reviewIdentity(quote, recipient),
+    problem = useQuoteProblem(quote, recipient);
+  const [failure, setFailure] = useState<{
+    key: string;
+    message: string;
+  } | null>(null);
+  function confirm() {
+    try {
+      const snapshot = confirmTransfer(quote, recipient);
+      setFailure(null);
+      onConfirm(snapshot);
+    } catch (error) {
+      setFailure({
+        key: identity,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to confirm this transfer.",
+      });
+    }
+  }
+  return (
     <Card>
       <Stack>
         <FinanceText kind="subtitle">Review transfer</FinanceText>
-        <RecipientRow
-          selected
-          accountCurrency={currency === "GBP" ? "EUR" : "GBP"}
-        />
-        <ExchangeQuote amount={amount} currency={currency} />
-        <FeeBreakdown minor={minor ?? 0} currency={currency} />
+        <RecipientRow recipient={recipient} selected />
+        <ExchangeQuote quote={quote} />
+        <FeeBreakdown quote={quote} />
         <ConfirmationAction
-          disabled={minor === null || minor <= 250}
-          onConfirm={() => setSent(true)}
+          reviewKey={identity}
+          disabled={disabled || !!problem}
+          onConfirm={confirm}
+          label={confirmLabel}
+          description={description}
         />
+        {(problem || failure?.key === identity) && (
+          <FinanceText accessibilityRole="alert" tone="danger" kind="caption">
+            {problem || failure?.message}
+          </FinanceText>
+        )}
       </Stack>
     </Card>
   );
 }
-export function EmptyState({ onAction = () => {} }: { onAction?: () => void }) {
-  return (
-    <View
-      style={{ gap: sp[4], alignItems: "center", padding: tokens.padding.card }}
-    >
-      <FinanceText kind="subtitle">No transactions yet</FinanceText>
-      <FinanceText tone="muted" kind="body-small">
-        Transactions will appear here.
-      </FinanceText>
-      <Button variant="secondary" onPress={onAction}>
-        Add demo transaction
-      </Button>
-    </View>
-  );
-}
-export function Receipt({
-  currency = "USD",
-  status = "completed",
-  minor = 100000,
+
+export function EmptyState({
+  onAction,
+  title = "No transactions yet",
+  description = "Your transactions will appear here.",
+  actionLabel = "Add transaction",
 }: {
-  currency?: string;
-  status?: string;
-  minor?: number;
+  onAction?: () => void;
+  title?: string;
+  description?: string;
+  actionLabel?: string;
 }) {
   return (
     <Card>
       <Stack>
-        <FinanceText kind="subtitle">
-          {status === "completed"
-            ? "Transfer complete"
-            : "Transfer in progress"}
-        </FinanceText>
-        <MoneyText minor={minor} currency={currency} large />
-        <FinanceText tone="muted" kind="caption">
-          To Jamie Chen · FIN-2026-1042
-        </FinanceText>
-        <Separator />
-        <TransferTimeline status={status} />
+        <FinanceText kind="subtitle">{title}</FinanceText>
+        <FinanceText tone="muted">{description}</FinanceText>
+        {onAction && (
+          <Button variant="secondary" onPress={onAction}>
+            {actionLabel}
+          </Button>
+        )}
       </Stack>
     </Card>
   );
 }
+
+export function Receipt({
+  transfer,
+  status,
+  reference,
+  steps,
+  onDownload,
+}: ReceiptProps) {
+  return (
+    <Card>
+      <Stack>
+        <FinanceText kind="caption" tone="muted">
+          Transfer receipt
+        </FinanceText>
+        <FinanceText kind="subtitle">
+          {status === "completed"
+            ? "Transfer complete"
+            : status === "failed"
+              ? "Transfer failed"
+              : "Transfer in progress"}
+        </FinanceText>
+        <MoneyText {...transfer.quote.send} large />
+        <FinanceText tone="muted">
+          To {transfer.recipient.name}
+          {reference && ` · reference ${reference}`}
+        </FinanceText>
+        {steps && <TransferTimeline steps={steps} />}
+        {onDownload && (
+          <Button variant="secondary" onPress={onDownload}>
+            Download receipt
+          </Button>
+        )}
+      </Stack>
+    </Card>
+  );
+}
+
 export function NumericKeypad({
   value,
   onChange,
-  currency = "USD",
+  currency,
   disabled = false,
 }: {
   value: string;
-  onChange: (v: string) => void;
-  currency?: string;
+  onChange: (value: string) => void;
+  currency: string;
   disabled?: boolean;
 }) {
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: sp[2] }}>
-      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((k) => (
-        <Button
-          key={k}
-          isDisabled={disabled}
-          variant="tertiary"
-          style={{
-            width: "31%",
-            flexGrow: 1,
-            minHeight: 64,
-            borderRadius: rad.sm,
-          }}
-          accessibilityLabel={
-            k === "⌫" ? "Backspace" : k === "." ? "Decimal point" : k
-          }
-          onPress={() => {
-            if (k === "⌫") return onChange(value.slice(0, -1) || "0");
-            if (
-              k === "." &&
-              (value.includes(".") || currencyDigits(currency) === 0)
-            )
-              return;
-            const next = (value === "0" && k !== "." ? "" : value) + k;
-            if (parseMinor(next, currency) !== null) onChange(next);
-          }}
-        >
-          <FinanceText kind="title">{k}</FinanceText>
-        </Button>
-      ))}
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map(
+        (key) => (
+          <Button
+            key={key}
+            isDisabled={
+              disabled || (key === "." && currencyDigits(currency) === 0)
+            }
+            variant="tertiary"
+            style={{
+              width: "31%",
+              flexGrow: 1,
+              minHeight: 64,
+              borderRadius: rad.sm,
+            }}
+            accessibilityLabel={
+              key === "⌫" ? "Backspace" : key === "." ? "Decimal point" : key
+            }
+            onPress={() => onChange(nextAmount(value, key, currency))}
+          >
+            <FinanceText kind="title">{key}</FinanceText>
+          </Button>
+        ),
+      )}
     </View>
   );
 }
-export function DatePicker() {
-  const [date, setDate] = useState(new Date(2026, 9, 28)),
-    [open, setOpen] = useState(false);
+
+export function DatePicker({
+  value,
+  onChange,
+  min,
+  max,
+  label = "Scheduled transfer date",
+  disabled = false,
+}: DatePickerProps) {
+  const [open, setOpen] = useState(false);
   return (
     <Stack>
-      <FinanceText kind="label">Scheduled transfer date</FinanceText>
-      <Button variant="secondary" onPress={() => setOpen(true)}>
-        {date.toLocaleDateString()}
+      <FinanceText kind="label">{label}</FinanceText>
+      <Button
+        variant="secondary"
+        isDisabled={disabled}
+        onPress={() => setOpen(true)}
+      >
+        {value
+          ? localDate(value).toLocaleDateString()
+          : "Choose a transfer date"}
       </Button>
       {open && (
         <DateTimePicker
-          value={date}
+          value={value ? localDate(value) : new Date()}
           mode="date"
-          minimumDate={new Date(2026, 9, 25)}
-          onChange={(_, d) => {
+          minimumDate={min ? localDate(min) : undefined}
+          maximumDate={max ? localDate(max) : undefined}
+          onChange={(event, date) => {
             if (Platform.OS === "android") setOpen(false);
-            if (d) setDate(d);
+            if (event.type === "set" && date) onChange(dateValue(date));
           }}
         />
       )}
@@ -997,40 +1185,59 @@ export function DatePicker() {
     </Stack>
   );
 }
-export function Stepper() {
-  const [v, setV] = useState(1);
+
+export function Stepper({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  label = "Interval",
+  description,
+  disabled = false,
+}: StepperProps) {
+  assertStepper({ value, min, max, step });
   return (
     <Stack>
-      <FinanceText kind="label">Recurring interval, months</FinanceText>
+      <FinanceText kind="label">{label}</FinanceText>
       <Row>
         <Button
-          accessibilityLabel="Decrease interval"
+          accessibilityLabel={`Decrease ${label}`}
           variant="secondary"
-          isDisabled={v <= 1}
-          onPress={() => setV(v - 1)}
+          isDisabled={disabled || value <= min}
+          onPress={() => onChange(Math.max(min, value - step))}
         >
           −
         </Button>
-        <FinanceText accessibilityLiveRegion="polite">{v}</FinanceText>
+        <FinanceText accessibilityLiveRegion="polite">{value}</FinanceText>
         <Button
-          accessibilityLabel="Increase interval"
+          accessibilityLabel={`Increase ${label}`}
           variant="secondary"
-          isDisabled={v >= 12}
-          onPress={() => setV(v + 1)}
+          isDisabled={disabled || value >= max}
+          onPress={() => onChange(Math.min(max, value + step))}
         >
           +
         </Button>
       </Row>
-      <FinanceText tone="muted" kind="caption">
-        Every {v} {v === 1 ? "month" : "months"}
-      </FinanceText>
+      {description && (
+        <FinanceText tone="muted" kind="caption">
+          {description}
+        </FinanceText>
+      )}
     </Stack>
   );
 }
-export function DataTable({ currency = "USD" }: { currency?: string }) {
+
+export function DataTable({
+  items,
+  label = "Recent transactions",
+}: {
+  items: readonly Transaction[];
+  label?: string;
+}) {
   const c = useFinanceTheme();
   return (
-    <ScrollView horizontal>
+    <ScrollView horizontal accessibilityLabel={label}>
       <View style={{ minWidth: 480, gap: sp[3] }}>
         <View
           style={[
@@ -1051,26 +1258,31 @@ export function DataTable({ currency = "USD" }: { currency?: string }) {
           </FinanceText>
           <FinanceText kind="label">Amount</FinanceText>
         </View>
-        {txs.map((t) => (
+        {items.map((item) => (
           <View
-            key={t.name}
+            key={item.id}
             accessible
-            accessibilityLabel={`${t.name}, ${t.status}, ${formatMoney(t.minor, currency)}`}
+            accessibilityLabel={`${item.name}, ${item.status}, ${formatMoney(item.amount.minor, item.amount.currency)}`}
             style={s.row}
           >
             <FinanceText kind="body-small" style={{ width: 160 }}>
-              {t.name}
+              {item.name}
             </FinanceText>
             <FinanceText kind="body-small" style={{ width: 100 }}>
-              {t.status}
+              {item.status === "completed"
+                ? "Completed"
+                : item.status === "pending"
+                  ? "Pending"
+                  : "Failed"}
             </FinanceText>
-            <MoneyText minor={t.minor} currency={currency} signed />
+            <MoneyText {...item.amount} signed />
           </View>
         ))}
       </View>
     </ScrollView>
   );
 }
+
 export const financeComponents = {
   MoneyText,
   CurrencySelector,

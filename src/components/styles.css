@@ -1,0 +1,9 @@
+/* Product entry: theme, fonts and reusable components, without workshop layout. */
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/geist-mono";
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "../design-system/generated.css";
+@import "../design-system/components.css";
+@import "./finance.css";
+@import "./chat.css";

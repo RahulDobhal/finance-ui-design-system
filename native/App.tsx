@@ -1,5 +1,5 @@
 import "./global.css";
-import React, { useState } from "react";
+import { useState } from "react";
 import { useFonts } from "expo-font";
 import { Inter_400Regular } from "@expo-google-fonts/inter/400Regular";
 import { Inter_500Medium } from "@expo-google-fonts/inter/500Medium";
@@ -19,197 +19,87 @@ import { HeroUINativeProvider, Button, Input, Select } from "heroui-native";
 import { Uniwind } from "uniwind";
 import { tokens } from "../src/design-system/tokens";
 import { useReducedMotion } from "./useReducedMotion";
-import { NativeChatStory } from "./chat";
-import { chatNames, chatStates } from "../src/data/catalog";
+import { NativeChatStory } from "./workshop/chat";
+import { NativeFinanceStory } from "./workshop/finance";
+import type { StoryProps } from "../src/workshop/types";
+import { demoCurrencies } from "../src/workshop/finance-fixtures";
+import {
+  chatNames,
+  chatStates,
+  financeNames,
+  extensionNames,
+} from "../src/data/catalog";
 import * as F from "./finance";
-import { parseMinor } from "../src/design-system/money.mjs";
 
-const names = [
-  ...Object.keys(F.financeComponents),
-  ...Object.keys(F.extensionComponents),
-  ...chatNames,
-];
+const names = [...financeNames, ...extensionNames, ...chatNames];
+
+function Foundations() {
+  const colors = F.useFinanceTheme();
+  return (
+    <View style={{ gap: tokens.spacing[6] }}>
+      <F.FinanceText kind="heading">Finance UI</F.FinanceText>
+      <F.FinanceText tone="muted">
+        Shared tokens → HeroUI primitives → finance compositions.
+      </F.FinanceText>
+      {Object.entries(colors).map(([name, value]) => (
+        <View
+          key={name}
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: tokens.spacing[3],
+          }}
+        >
+          <View
+            style={{
+              width: tokens.spacing[8],
+              height: tokens.spacing[8],
+              borderRadius: tokens.radius.md,
+              backgroundColor: value,
+            }}
+          />
+          <F.FinanceText kind="caption">
+            {name}: {value}
+          </F.FinanceText>
+        </View>
+      ))}
+      {Object.keys(tokens.typography).map((name) => (
+        <F.FinanceText key={name} kind={name as keyof typeof tokens.typography}>
+          {name} · $12,845.00
+        </F.FinanceText>
+      ))}
+    </View>
+  );
+}
+
 function Catalog() {
   const [name, setName] = useState("Foundations"),
     [currency, setCurrency] = useState("USD"),
     [amount, setAmount] = useState("1000.00"),
     [status, setStatus] = useState("default"),
-    [selected, setSelected] = useState(false),
-    [period, setPeriod] = useState("Week"),
-    [theme, setTheme] = useState("light"),
-    c = F.useFinanceTheme();
-  const props = { currency, amount };
-  let content: React.ReactNode;
-  switch (name) {
-    case "Foundations":
-      content = (
-        <View style={{ gap: tokens.spacing[6] }}>
-          <F.FinanceText kind="heading">Finance UI</F.FinanceText>
-          <F.FinanceText tone="muted">
-            Shared tokens → HeroUI primitives → finance compositions.
-          </F.FinanceText>
-          {Object.entries(c).map(([n, v]) => (
-            <View
-              key={n}
-              style={{ flexDirection: "row", alignItems: "center", gap: 12 }}
-            >
-              <View
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 8,
-                  backgroundColor: v,
-                  borderWidth: 0,
-                  borderColor: c["surface-tertiary"],
-                }}
-              />
-              <F.FinanceText kind="caption">
-                {n}: {v}
-              </F.FinanceText>
-            </View>
-          ))}
-          {Object.entries(tokens.typography).map(([n]) => (
-            <F.FinanceText key={n} kind={n as keyof typeof tokens.typography}>
-              {n} · $12,845.00
-            </F.FinanceText>
-          ))}
-        </View>
-      );
-      break;
-    case "MoneyText":
-      content = <F.MoneyText currency={currency} large />;
-      break;
-    case "CurrencySelector":
-      content = <F.CurrencySelector value={currency} onChange={setCurrency} />;
-      break;
-    case "AmountInput":
-      content = (
-        <F.AmountInput
-          value={amount}
-          onChange={setAmount}
-          currency={currency}
-          onCurrency={setCurrency}
-          forceError={status === "error"}
-        />
-      );
-      break;
-    case "BalanceCard":
-      content = (
-        <F.BalanceCard
-          currency={currency}
-          onSend={() => setName("TransferReview")}
-        />
-      );
-      break;
-    case "TransactionRow":
-      content = (
-        <F.TransactionRow
-          currency={currency}
-          onPress={() =>
-            Alert.alert("Demo transaction", "Alex Morgan · completed")
-          }
-        />
-      );
-      break;
-    case "TransactionList":
-      content = (
-        <F.TransactionList currency={currency} empty={status === "empty"} />
-      );
-      break;
-    case "RecipientRow":
-      content = (
-        <F.RecipientRow
-          selected={selected}
-          onPress={() => setSelected(!selected)}
-        />
-      );
-      break;
-    case "AccountDetails":
-      content = <F.AccountDetails />;
-      break;
-    case "FeeBreakdown":
-      content = <F.FeeBreakdown currency={currency} />;
-      break;
-    case "ExchangeQuote":
-      content = <F.ExchangeQuote {...props} />;
-      break;
-    case "TransferTimeline":
-      content = <F.TransferTimeline status={status} />;
-      break;
-    case "PaymentCard":
-      content = <F.PaymentCard />;
-      break;
-    case "SpendingSummary":
-      content = <F.SpendingSummary currency={currency} />;
-      break;
-    case "LimitMeter":
-      content = <F.LimitMeter currency={currency} />;
-      break;
-    case "VerificationStatus":
-      content = <F.VerificationStatus status={status} />;
-      break;
-    case "TransferReview":
-      content = <F.TransferReview {...props} />;
-      break;
-    case "EmptyState":
-      content = <F.EmptyState onAction={() => setName("TransactionList")} />;
-      break;
-    case "Receipt":
-      content = (
-        <F.Receipt
-          currency={currency}
-          status={status === "default" ? "completed" : status}
-        />
-      );
-      break;
-    case "NumericKeypad":
-      content = (
-        <View style={{ gap: 16 }}>
-          <F.MoneyText
-            minor={parseMinor(amount, currency) ?? 0}
-            currency={currency}
-            large
-          />
-          <F.NumericKeypad
-            value={amount}
-            onChange={setAmount}
-            currency={currency}
-          />
-        </View>
-      );
-      break;
-    case "DatePicker":
-      content = <F.DatePicker />;
-      break;
-    case "ProgressMeter":
-      content = <F.ProgressMeter />;
-      break;
-    case "LineChart":
-      content = <F.LineChart period={period} />;
-      break;
-    case "SegmentedControl":
-      content = <F.SegmentedControl value={period} onChange={setPeriod} />;
-      break;
-    case "Stepper":
-      content = <F.Stepper />;
-      break;
-    case "DataTable":
-      content = <F.DataTable currency={currency} />;
-      break;
-    case "ConfirmationAction":
-      content = (
-        <F.ConfirmationAction
-          onConfirm={() => Alert.alert("Demo confirmed", "No money moved.")}
-        />
-      );
-      break;
-    default:
-      content = chatNames.includes(name) ? (
-        <NativeChatStory name={name} state={status} />
-      ) : (
-        <F.FinanceText>Select a component.</F.FinanceText>
-      );
-  }
+    [hidden, setHidden] = useState(false),
+    [theme, setTheme] = useState("light");
+  const c = F.useFinanceTheme();
+  const p: StoryProps = {
+    currency,
+    setCurrency,
+    amount,
+    setAmount,
+    state: status,
+    hidden,
+    setHidden,
+    size: "md",
+    variant: "primary",
+    notify: (message) => Alert.alert("Component demo", message),
+  };
+  const content =
+    name === "Foundations" ? (
+      <Foundations />
+    ) : chatNames.includes(name) ? (
+      <NativeChatStory name={name} state={status} />
+    ) : (
+      <NativeFinanceStory name={name} p={p} />
+    );
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
       <KeyboardAvoidingView
@@ -252,7 +142,7 @@ function Catalog() {
               }
             }}
           >
-            <Select.Trigger>
+            <Select.Trigger accessibilityLabel="Choose a story">
               <Select.Value placeholder="Choose an option" />
               <Select.TriggerIndicator />
             </Select.Trigger>
@@ -300,7 +190,11 @@ function Catalog() {
               </Select>
             ) : (
               <>
-                <F.CurrencySelector value={currency} onChange={setCurrency} />
+                <F.CurrencySelector
+                  value={currency}
+                  onChange={setCurrency}
+                  currencies={demoCurrencies}
+                />
                 <Input
                   accessibilityLabel="Demo amount"
                   value={amount}
@@ -308,6 +202,7 @@ function Catalog() {
                   keyboardType="decimal-pad"
                 />
                 <F.SegmentedControl
+                  label="Story state"
                   options={["default", "pending", "completed"]}
                   value={status}
                   onChange={setStatus}

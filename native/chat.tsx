@@ -1,5 +1,12 @@
-import React, { useEffect, useReducer, useRef, useState } from "react";
-import { Animated, Pressable, ScrollView, TextInput, View } from "react-native";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  AccessibilityInfo,
+  Animated,
+  Pressable,
+  ScrollView,
+  TextInput,
+  View,
+} from "react-native";
 import { Button } from "./base";
 import { useReducedMotion } from "./useReducedMotion";
 import { FinanceText, useFinanceTheme } from "./finance";
@@ -7,13 +14,15 @@ import { tokens } from "../src/design-system/tokens";
 import {
   activityLabels,
   activitySteps,
-  chatReducer,
-  demoResponse,
-  initialChat,
+  chatAnnouncement,
 } from "../src/design-system/chat-state.mjs";
 
-type Activity = keyof typeof activityLabels;
-type Feedback = "like" | "dislike" | null;
+import type {
+  Activity,
+  Feedback,
+  ChatThreadProps,
+} from "../src/design-system/chat";
+export type { ChatThreadProps } from "../src/design-system/chat";
 const sp = tokens.spacing;
 const shape = {
   borderRadius: tokens.radius.md,
@@ -22,8 +31,10 @@ const shape = {
 
 export function ThinkingIndicator({
   state = "thinking",
+  announce = true,
 }: {
   state?: Activity;
+  announce?: boolean;
 }) {
   const opacity = useRef(new Animated.Value(1)).current;
   const reduced = useReducedMotion();
@@ -54,7 +65,7 @@ export function ThinkingIndicator({
   }, [reduced, state, opacity]);
   return (
     <View
-      accessibilityLiveRegion="polite"
+      accessibilityLiveRegion={announce ? "polite" : "none"}
       style={{
         flexDirection: "row",
         gap: sp[2],
@@ -78,10 +89,12 @@ export function ThinkingPanel({
   state = "analyzing",
   defaultExpanded = false,
   onRetry,
+  announce = true,
 }: {
   state?: Activity;
   defaultExpanded?: boolean;
   onRetry?: () => void;
+  announce?: boolean;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded),
     c = useFinanceTheme();
@@ -111,7 +124,10 @@ export function ThinkingPanel({
           alignItems: "center",
         }}
       >
-        <ThinkingIndicator state={state} />
+        <ThinkingIndicator
+          state={state}
+          announce={announce && state !== "error"}
+        />
         <FinanceText tone="muted">{expanded ? "−" : "+"}</FinanceText>
       </Pressable>
       {expanded && (
@@ -161,7 +177,7 @@ export function ThinkingPanel({
           <FinanceText
             kind="body-small"
             tone="danger"
-            accessibilityRole="alert"
+            accessibilityRole={announce ? "alert" : undefined}
           >
             Connection interrupted. Your query is saved.
           </FinanceText>
@@ -210,10 +226,12 @@ export function AgentResponse({
   children,
   state = "completed",
   onRetry,
+  announce = true,
 }: {
-  children?: React.ReactNode;
+  children: React.ReactNode;
   state?: "completed" | "writing" | "error" | "stopped";
   onRetry?: () => void;
+  announce?: boolean;
 }) {
   const c = useFinanceTheme();
   return (
@@ -223,8 +241,10 @@ export function AgentResponse({
         { gap: sp[3], backgroundColor: c["surface-secondary"], padding: sp[4] },
       ]}
     >
-      <FinanceText selectable>{children || demoResponse}</FinanceText>
-      {state === "writing" && <ThinkingIndicator state="writing" />}
+      <FinanceText selectable>{children}</FinanceText>
+      {state === "writing" && (
+        <ThinkingIndicator state="writing" announce={announce} />
+      )}
       {state === "stopped" && (
         <FinanceText tone="muted" kind="caption">
           Response stopped
@@ -232,7 +252,10 @@ export function AgentResponse({
       )}
       {state === "error" && (
         <>
-          <FinanceText accessibilityRole="alert" tone="danger">
+          <FinanceText
+            accessibilityRole={announce ? "alert" : undefined}
+            tone="danger"
+          >
             Response interrupted.
           </FinanceText>
           {onRetry && (
@@ -242,70 +265,6 @@ export function AgentResponse({
           )}
         </>
       )}
-    </View>
-  );
-}
-
-function SpendingTaskPreview() {
-  const [expanded, setExpanded] = useState(false);
-  const c = useFinanceTheme();
-  return (
-    <View
-      style={[
-        shape,
-        { gap: sp[3], padding: sp[3], backgroundColor: c["surface-secondary"] },
-      ]}
-    >
-      <View style={{ gap: sp[1] }}>
-        <FinanceText kind="label">Spending review</FinanceText>
-        <FinanceText kind="body-small" tone="muted">
-          Sample transactions · ready to review
-        </FinanceText>
-      </View>
-      <View
-        style={[
-          shape,
-          { gap: sp[2], padding: sp[4], backgroundColor: c.surface },
-        ]}
-      >
-        <FinanceText kind="body-small" tone="muted">
-          Total outgoings
-        </FinanceText>
-        <FinanceText kind="title">$639.39</FinanceText>
-        {expanded && (
-          <View style={{ gap: sp[3], marginTop: sp[3] }}>
-            {[
-              ["Transfers", "$500.00"],
-              ["Card payments", "$128.40"],
-              ["Subscriptions", "$10.99"],
-            ].map(([label, amount]) => (
-              <View
-                key={label}
-                style={{
-                  flexDirection: "row",
-                  justifyContent: "space-between",
-                  gap: sp[3],
-                }}
-              >
-                <FinanceText kind="body-small">{label}</FinanceText>
-                <FinanceText
-                  kind="body-small"
-                  style={{ fontFamily: tokens.font.nativeMono }}
-                >
-                  {amount}
-                </FinanceText>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-      <Button
-        variant="tertiary"
-        accessibilityState={{ expanded }}
-        onPress={() => setExpanded(!expanded)}
-      >
-        {expanded ? "Hide breakdown" : "View breakdown"}
-      </Button>
     </View>
   );
 }
@@ -360,6 +319,7 @@ export function PromptInput({
   onStop,
   mode = "spacious",
   state = "default",
+  inputRef,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -367,7 +327,10 @@ export function PromptInput({
   onStop?: () => void;
   mode?: "spacious" | "compact";
   state?: "default" | "generating" | "error" | "disabled";
+  inputRef?: React.RefObject<React.ComponentRef<typeof TextInput> | null>;
 }) {
+  const localInput = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const input = inputRef || localInput;
   const c = useFinanceTheme(),
     [focused, setFocused] = useState(false),
     [contentHeight, setContentHeight] = useState(0),
@@ -392,10 +355,11 @@ export function PromptInput({
       ]}
     >
       <TextInput
+        ref={input}
         accessibilityLabel="Message"
         accessibilityHint="Write a message, then activate Send message."
         multiline
-        editable={!generating && !disabled}
+        editable={!disabled}
         value={value}
         onChangeText={onChange}
         onFocus={() => setFocused(true)}
@@ -436,13 +400,16 @@ export function PromptInput({
             ? "Response in progress"
             : disabled
               ? "Messaging unavailable"
-              : "Local demo"}
+              : "Write a message"}
         </FinanceText>
         {generating ? (
           <Button
             variant="secondary"
             isDisabled={!onStop}
-            onPress={onStop}
+            onPress={() => {
+              onStop?.();
+              input.current?.focus();
+            }}
             accessibilityLabel="Stop response"
           >
             Stop
@@ -451,7 +418,10 @@ export function PromptInput({
           <Button
             isDisabled={disabled || !value.trim()}
             onPress={() => {
-              if (value.trim() && !disabled) onSend();
+              if (value.trim() && !disabled && !generating) {
+                onSend();
+                input.current?.focus();
+              }
             }}
             accessibilityLabel={
               state === "error" ? "Retry message" : "Send message"
@@ -471,49 +441,48 @@ export function PromptInput({
 }
 
 export function ChatThread({
-  simulateError = false,
-}: {
-  simulateError?: boolean;
-}) {
-  const [thread, dispatch] = useReducer(chatReducer, initialChat),
-    [draft, setDraft] = useState("");
-  const failedOnce = useRef(false),
-    scroll = useRef<React.ComponentRef<typeof ScrollView>>(null),
-    follow = useRef(true);
+  messages,
+  status,
+  activity = "thinking",
+  draft,
+  onDraftChange,
+  onSend,
+  onStop,
+  onRetry,
+  title = "Assistant",
+  subtitle,
+  emptyState,
+  renderResult,
+}: ChatThreadProps) {
+  const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const input = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const follow = useRef(true);
+  const currentActivity =
+    status === "error" || status === "stopped" || status === "completed"
+      ? status
+      : activity;
+  const announcement = chatAnnouncement(status, currentActivity, messages);
+  const previousAnnouncement = useRef(announcement);
   useEffect(() => {
-    if (thread.status !== "generating") return;
-    const timers = activitySteps
-      .slice(1)
-      .map((stage, i) =>
-        setTimeout(
-          () => dispatch({ type: "stage", id: thread.requestId, stage }),
-          (i + 1) * 900,
-        ),
-      );
-    timers.push(
-      setTimeout(() => {
-        if (simulateError && !failedOnce.current) {
-          failedOnce.current = true;
-          dispatch({ type: "fail", id: thread.requestId });
-        } else
-          dispatch({
-            type: "complete",
-            id: thread.requestId,
-            text: demoResponse,
-          });
-      }, 3600),
-    );
-    return () => timers.forEach(clearTimeout);
-  }, [thread.status, thread.requestId, simulateError]);
-  function send() {
-    if (!draft.trim() || thread.status === "generating") return;
-    dispatch({ type: "send", text: draft });
-    setDraft("");
+    if (announcement && announcement !== previousAnnouncement.current)
+      AccessibilityInfo.announceForAccessibility(announcement);
+    previousAnnouncement.current = announcement;
+  }, [announcement]);
+  function retry() {
+    onRetry?.();
+    input.current?.focus();
     follow.current = true;
   }
   return (
     <View style={{ gap: sp[6] }}>
-      <FinanceText kind="subtitle">Finance assistant · local demo</FinanceText>
+      <View style={{ gap: sp[1] }}>
+        <FinanceText kind="subtitle">{title}</FinanceText>
+        {subtitle && (
+          <FinanceText kind="caption" tone="muted">
+            {subtitle}
+          </FinanceText>
+        )}
+      </View>
       <ScrollView
         ref={scroll}
         nestedScrollEnabled
@@ -522,8 +491,8 @@ export function ChatThread({
         onContentSizeChange={() => {
           if (follow.current) scroll.current?.scrollToEnd({ animated: false });
         }}
-        onScroll={(e) => {
-          const n = e.nativeEvent;
+        onScroll={(event) => {
+          const n = event.nativeEvent;
           follow.current =
             n.contentSize.height -
               n.contentOffset.y -
@@ -533,137 +502,42 @@ export function ChatThread({
         scrollEventThrottle={100}
         keyboardShouldPersistTaps="handled"
       >
-        {!thread.messages.length && (
-          <FinanceText tone="muted">
-            Ask a question to preview the conversation states.
-          </FinanceText>
+        {!messages.length && emptyState}
+        {messages.map((message, index) =>
+          message.role === "user" ? (
+            <UserQuery key={message.id}>{message.text}</UserQuery>
+          ) : (
+            <View key={message.id} style={{ gap: sp[3] }}>
+              <AgentResponse announce={false}>{message.text}</AgentResponse>
+              {renderResult?.(message, index)}
+            </View>
+          ),
         )}
-        {thread.messages.map(
-          (m: { id: string; role: string; text: string }, index) =>
-            m.role === "user" ? (
-              <UserQuery key={m.id}>{m.text}</UserQuery>
-            ) : (
-              <View key={m.id} style={{ gap: sp[3] }}>
-                <AgentResponse>{m.text}</AgentResponse>
-                {/spend|transaction|review/i.test(
-                  thread.messages[index - 1]?.text || "",
-                ) && <SpendingTaskPreview />}
-              </View>
-            ),
-        )}
-        {["generating", "error", "stopped"].includes(thread.status) && (
+        {["generating", "error", "stopped"].includes(status) && (
           <ThinkingPanel
-            state={thread.stage as Activity}
-            onRetry={() => dispatch({ type: "retry" })}
+            state={currentActivity}
+            onRetry={onRetry ? retry : undefined}
+            announce={false}
           />
         )}
-        {thread.status === "stopped" && (
-          <Button
-            variant="tertiary"
-            onPress={() => dispatch({ type: "retry" })}
-          >
+        {status === "stopped" && onRetry && (
+          <Button variant="tertiary" onPress={retry}>
             Try again
           </Button>
         )}
       </ScrollView>
       <PromptInput
+        inputRef={input}
         value={draft}
-        onChange={setDraft}
-        onSend={send}
-        onStop={() => dispatch({ type: "stop" })}
-        mode={thread.messages.length ? "compact" : "spacious"}
-        state={thread.status === "generating" ? "generating" : "default"}
+        onChange={onDraftChange}
+        onSend={() => {
+          follow.current = true;
+          onSend();
+        }}
+        onStop={onStop}
+        mode={messages.length ? "compact" : "spacious"}
+        state={status === "generating" ? "generating" : "default"}
       />
     </View>
   );
-}
-
-export function NativeChatStory({
-  name,
-  state,
-}: {
-  name: string;
-  state: string;
-}) {
-  const [draft, setDraft] = useState(""),
-    [feedback, setFeedback] = useState<Feedback>(null),
-    [done, setDone] = useState(false);
-  const activity = (
-    ["default", "expanded", "collapsed"].includes(state) ? "analyzing" : state
-  ) as Activity;
-  const retry = () => setDone(true);
-  switch (name) {
-    case "ThinkingIndicator":
-      return <ThinkingIndicator state={done ? "completed" : activity} />;
-    case "ThinkingPanel":
-      return (
-        <ThinkingPanel
-          state={done ? "completed" : activity}
-          defaultExpanded={state === "expanded"}
-          onRetry={retry}
-        />
-      );
-    case "ResponseFeedback":
-      return (
-        <ResponseFeedback
-          value={feedback}
-          onChange={setFeedback}
-          disabled={state === "disabled"}
-        />
-      );
-    case "AgentResponse":
-      return (
-        <AgentResponse
-          state={
-            done
-              ? "completed"
-              : ["writing", "stopped", "error"].includes(state)
-                ? (state as "writing" | "stopped" | "error")
-                : "completed"
-          }
-          onRetry={retry}
-        />
-      );
-    case "UserQuery":
-      return (
-        <UserQuery
-          state={
-            done
-              ? "sent"
-              : state === "sending"
-                ? "sending"
-                : state === "error"
-                  ? "error"
-                  : "sent"
-          }
-          onRetry={retry}
-        >
-          How much did I spend this week?
-        </UserQuery>
-      );
-    case "PromptInput":
-      return (
-        <PromptInput
-          value={draft}
-          onChange={setDraft}
-          onSend={() => {
-            setDraft("");
-            setDone(true);
-          }}
-          onStop={retry}
-          mode={state === "compact" ? "compact" : "spacious"}
-          state={
-            done
-              ? "default"
-              : ["generating", "error", "disabled"].includes(state)
-                ? (state as "generating" | "error" | "disabled")
-                : "default"
-          }
-        />
-      );
-    case "ChatThread":
-      return <ChatThread simulateError={state === "error"} />;
-    default:
-      return null;
-  }
 }

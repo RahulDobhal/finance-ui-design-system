@@ -55,10 +55,13 @@ test("every catalog entry has an implementation, story and resolvable compositio
   const native = exports("native/finance.tsx").concat(
     exports("native/chat.tsx"),
   );
-  const webCases = cases("src/components/finance.tsx").concat(
-    cases("src/components/chat.tsx"),
-  );
-  const nativeCases = cases("native/App.tsx").concat(cases("native/chat.tsx"));
+  const storyCases = (directory) =>
+    fs
+      .readdirSync(new URL("../" + directory, import.meta.url))
+      .filter((file) => file.endsWith(".tsx"))
+      .flatMap((file) => cases(directory + "/" + file));
+  const webCases = storyCases("src/workshop");
+  const nativeCases = storyCases("native/workshop");
   for (const n of additions) {
     assert.ok(web.includes(n), "Web export: " + n);
     assert.ok(native.includes(n), "Native export: " + n);
@@ -68,7 +71,7 @@ test("every catalog entry has an implementation, story and resolvable compositio
   }
   for (const n of catalog.baseNames)
     assert.ok(
-      cases("src/components/BaseStory.tsx").includes(n),
+      cases("src/workshop/BaseStory.tsx").includes(n),
       "Core adapter: " + n,
     );
   for (const [name, children] of Object.entries(catalog.compositions))
@@ -133,6 +136,9 @@ test("action, chat and secondary text pairs meet AA in both themes", () => {
 test("handwritten styles contain no raw color literals or independent font sizes", () => {
   for (const path of [
     "src/styles.css",
+    "src/components/styles.css",
+    "src/components/finance.css",
+    "src/workshop/chat.css",
     "src/components/chat.css",
     "src/design-system/components.css",
   ]) {

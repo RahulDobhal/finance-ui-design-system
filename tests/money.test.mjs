@@ -34,7 +34,14 @@ test("money formatting preserves stored minor units", () => {
   assert.throws(() => formatMoney(1.5, "USD"));
 });
 test("quotes subtract included fees and round once in integer arithmetic", () => {
-  assert.deepEqual(makeQuote(100000), {
+  const pricing = {
+    from: "USD",
+    to: "GBP",
+    feeMinor: 250,
+    rateNumerator: 83,
+    rateDenominator: 100,
+  };
+  assert.deepEqual(makeQuote(100000, pricing), {
     sendMinor: 100000,
     feeMinor: 250,
     receiveMinor: 82793,
@@ -42,8 +49,8 @@ test("quotes subtract included fees and round once in integer arithmetic", () =>
     to: "GBP",
     valid: true,
   });
-  assert.equal(makeQuote(200).valid, false);
-  assert.equal(makeQuote(200).receiveMinor, 0);
+  assert.equal(makeQuote(200, pricing).valid, false);
+  assert.equal(makeQuote(200, pricing).receiveMinor, 0);
   assert.equal(
     makeQuote(1000, {
       from: "JPY",
@@ -54,7 +61,7 @@ test("quotes subtract included fees and round once in integer arithmetic", () =>
     }).receiveMinor,
     1000,
   );
-  assert.throws(() => makeQuote(-1));
+  assert.throws(() => makeQuote(-1, pricing));
 });
 test("both themes share the same semantic contract", () =>
   assert.deepEqual(

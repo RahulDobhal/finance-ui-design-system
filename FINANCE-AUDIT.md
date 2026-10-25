@@ -60,13 +60,13 @@ Upstream APIs are preserved. The browser displays supported HeroUI React counter
 | DataTable | Readable compact transaction records | Table exists in Pro; this implements a small records table |
 | ConfirmationAction | Acknowledgement plus gated action | Finance interaction composition rather than an upstream component |
 
-All 26 additions have browser stories and native implementations. Native and browser presentation differ where platform conventions warrant it. For example, web Receipt downloads a text file; native Receipt displays the confirmation without a download button.
+All 26 additions have browser stories and native implementations. Native and browser presentation differ where platform conventions warrant it. For example, the web Receipt story downloads a text file through an application callback; the native story displays the confirmation without a download action.
 
 ## Benchmark observations and applications
 
 **[Wise account overview](https://mobbin.com/screens/7e0d7d7a-a184-42f0-87dc-6be74cf68a2a):** the inspected screen places Send/Add money/Request near the top, uses currency/account surfaces and repeatable transaction rows, and limits bottom navigation. Applied through BalanceCard, quick actions and TransactionRow/List. We did not reproduce Wise's brand or promotional illustrations.
 
-**[Wise transfer quote](https://mobbin.com/screens/370316cc-c8c1-4555-9d6f-22be23213dae):** send and receive amounts remain explicit; currency controls sit close to values; funding method, arrival and total fees appear before progression. Applied through AmountInput, CurrencySelector, ExchangeQuote, FeeBreakdown and TransferReview. Values here are fixed demo rates.
+**[Wise transfer quote](https://mobbin.com/screens/370316cc-c8c1-4555-9d6f-22be23213dae):** send and receive amounts remain explicit; currency controls sit close to values; funding method, arrival and total fees appear before progression. Applied through AmountInput, CurrencySelector, ExchangeQuote, FeeBreakdown and TransferReview. The workshop supplies illustrative fixed rates; reusable components require an explicit quote from the application.
 
 **[Revolut transfer tracking](https://mobbin.com/screens/b7a4d4f5-b5a7-4f95-a39e-84e7a258996c):** a pending transfer has sequential progress, followed by reference and bank details. Applied through TransferTimeline, AccountDetails and Receipt, with text distinguishing pending, completed and failed states.
 
@@ -94,4 +94,8 @@ The audit and corresponding stories are also available in the workshop under **F
 
 The 0.2 revision adds 7 chat components: ThinkingIndicator, ThinkingPanel, ResponseFeedback, AgentResponse, UserQuery, PromptInput and ChatThread. Every addition has a browser story and native implementation. A sixth pattern composes the chat thread. Total inventory: 72 component stories and 6 patterns.
 
-Pass 1 uses green primary buttons, contrasting secondary buttons, neutral filled surfaces, sharp corners and 12/18 px icon/text padding. The balance area is quiet while the action area carries the stronger green. Chat follows the supplied HextaUI reference, with compact progress disclosures and open assistant responses. See [HANDOFF.md](HANDOFF.md) for visual contracts and platform limitations, and [VALIDATION.md](VALIDATION.md) for current test evidence. The separate code-quality/scalability pass is still pending.
+Pass 1 uses green primary buttons, contrasting secondary buttons, neutral filled surfaces and sharp corners. Default buttons use a 20 px icon/label line height with 14/21 px icon/text-side padding; fields use 12/18 px. The balance area is quiet while the action area carries the stronger green. Chat follows the supplied references, with compact progress disclosures and embedded results.
+
+Pass 2 separates reusable components from workshop stories and fixtures. Small explicit props replace workshop-wide dependencies. A shared quote feeds fees, review and confirmation; an immutable snapshot feeds receipts. Transaction rows carry their own currency and stable IDs. Controlled chat exposes application callbacks and result composition; shared pure logic handles quote validation, keypad editing and chat state. The workshop shell is split by responsibility and loads source excerpts on demand. No new framework or dependency was added.
+
+See [HANDOFF.md](HANDOFF.md) for public contracts and integration limits, and [VALIDATION.md](VALIDATION.md) for the 38-test suite, browser checks and native export evidence.

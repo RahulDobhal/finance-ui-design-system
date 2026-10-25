@@ -57,25 +57,20 @@ export function formatMoney(
   }).format(remainder);
   // Preserve the sign when the magnitude is smaller than one major unit.
   const integral = minor < 0 && whole === 0n ? -0 : whole;
-  return formatter.formatToParts(integral)
-    .map((part) => part.type === "fraction" ? fraction : part.value)
+  return formatter
+    .formatToParts(integral)
+    .map((part) => (part.type === "fraction" ? fraction : part.value))
     .join("");
 }
 /**
  * Fee-inclusive quote with a rational FX rate and half-up rounding at the output.
  * Invalid inputs throw; amounts at or below the fee produce an invalid quote.
  * @param {number} sendMinor
- * @param {{feeMinor?: number, rateNumerator?: number, rateDenominator?: number, from?: string, to?: string}} [options]
+ * @param {{feeMinor: number, rateNumerator: number, rateDenominator: number, from: string, to: string}} options
  */
 export function makeQuote(
   sendMinor,
-  {
-    feeMinor = 250,
-    rateNumerator = 83,
-    rateDenominator = 100,
-    from = "USD",
-    to = "GBP",
-  } = {},
+  { feeMinor, rateNumerator, rateDenominator, from, to },
 ) {
   if (
     ![sendMinor, feeMinor, rateNumerator, rateDenominator].every(

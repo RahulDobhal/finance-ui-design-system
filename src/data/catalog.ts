@@ -364,7 +364,8 @@ Object.assign(descriptions, {
   ThinkingPanel: "A collapsible activity summary with retry handling.",
   ResponseFeedback:
     "Mutually exclusive like and dislike actions; press again to clear.",
-  AgentResponse: "Response content, embedded task results and interrupted states.",
+  AgentResponse:
+    "Response content, embedded task results and interrupted states.",
   UserQuery: "A user message with sent, sending and retry states.",
   PromptInput:
     "Spacious and compact composers with send, stop, error and disabled states.",
@@ -479,39 +480,5 @@ export const gaps = [
     state: "Integration",
     scope:
       "No real money, live rates, account connection or identity verification.",
-  },
-];
-export const transactions = [
-  {
-    name: "Alex Morgan",
-    detail: "Transfer received · Today",
-    minor: 245000,
-    kind: "income",
-    initials: "AM",
-    status: "Completed",
-  },
-  {
-    name: "North Studio",
-    detail: "Card payment · Today",
-    minor: -12840,
-    kind: "expense",
-    initials: "NS",
-    status: "Completed",
-  },
-  {
-    name: "Jamie Chen",
-    detail: "Bank transfer · Yesterday",
-    minor: -50000,
-    kind: "transfer",
-    initials: "JC",
-    status: "Pending",
-  },
-  {
-    name: "Spotify",
-    detail: "Subscription · Yesterday",
-    minor: -1099,
-    kind: "expense",
-    initials: "S",
-    status: "Completed",
   },
 ];

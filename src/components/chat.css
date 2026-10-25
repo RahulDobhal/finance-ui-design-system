@@ -251,98 +251,12 @@
   padding: var(--spacing-1);
   scrollbar-width: thin;
 }
-.chat-empty {
-  margin: auto 0;
-  display: grid;
-  gap: var(--spacing-3);
-}
-.chat-empty h3 {
-  font-size: var(--type-title-size);
-  line-height: var(--type-title-line);
-  letter-spacing: var(--type-title-tracking);
-  max-width: 18ch;
-}
-.chat-empty p {
-  max-width: 32ch;
-}
-.chat-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-3);
-}
-.chat-suggestions .button {
-  --button-bg: var(--surface-secondary);
-  --button-bg-hover: var(--surface-tertiary);
-  font-size: var(--type-caption-size);
-}
 .thread-messages > * {
   flex-shrink: 0;
 }
 .thread-response {
   display: grid;
   gap: var(--spacing-3);
-}
-.chat-task {
-  display: grid;
-  gap: var(--spacing-3);
-  background: var(--surface-secondary);
-  border-radius: var(--radius-md);
-  padding: var(--spacing-3);
-}
-.chat-task-heading {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--spacing-3);
-}
-.chat-task-heading > svg {
-  width: var(--type-label-line);
-  height: var(--type-label-line);
-  flex-shrink: 0;
-  color: var(--accent-soft-foreground);
-}
-.chat-task-heading h4 {
-  font-size: var(--type-label-size);
-  line-height: var(--type-label-line);
-  font-weight: 500;
-}
-.chat-task-heading p {
-  margin-top: var(--spacing-1);
-}
-.chat-task-summary {
-  display: grid;
-  gap: var(--spacing-2);
-  padding: var(--spacing-4);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-}
-.chat-task-summary > strong {
-  font-size: var(--type-title-size);
-  line-height: var(--type-title-line);
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-}
-.chat-task-breakdown {
-  display: grid;
-  gap: var(--spacing-3);
-  margin-top: var(--spacing-3);
-}
-.chat-task-breakdown > div {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--spacing-3);
-  font-size: var(--type-body-small-size);
-  line-height: var(--type-body-small-line);
-}
-.chat-task-breakdown dd {
-  margin: 0;
-  font-family: var(--font-mono);
-}
-.chat-task > .button {
-  width: 100%;
-}
-.chat-task > .button svg.is-expanded {
-  transform: rotate(180deg);
 }
 .chat-pattern {
   max-width: 760px;

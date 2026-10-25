@@ -6,8 +6,13 @@ import {
   RecipientRow,
   Toggle,
   TransactionList,
-  type StoryProps,
-} from "./finance";
+} from "../components/finance";
+import type { StoryProps } from "./types";
+import {
+  demoCurrencies,
+  demoTransactions,
+  demoRecipient,
+} from "./finance-fixtures";
 
 // Browser adapters use the supported HeroUI React counterparts. Native exports live in native/base.ts.
 export function BaseStory({ name, p }: { name: string; p: StoryProps }) {
@@ -184,6 +189,7 @@ export function BaseStory({ name, p }: { name: string; p: StoryProps }) {
                 </H.Modal.Header>
                 <H.Modal.Body>
                   <RecipientRow
+                    recipient={demoRecipient()}
                     selected
                     onPress={() => p.notify("Jamie Chen selected")}
                   />
@@ -333,8 +339,8 @@ export function BaseStory({ name, p }: { name: string; p: StoryProps }) {
     case "ListGroup":
       return (
         <TransactionList
-          currency={p.currency}
-          onPress={() => p.notify("Transaction selected")}
+          items={demoTransactions}
+          onItemPress={() => p.notify("Transaction selected")}
         />
       );
     case "Menu":
@@ -401,12 +407,12 @@ export function BaseStory({ name, p }: { name: string; p: StoryProps }) {
       return (
         <H.ScrollShadow className="scroll-demo">
           <TransactionList
-            currency={p.currency}
-            onPress={() => p.notify("Transaction selected")}
+            items={demoTransactions}
+            onItemPress={() => p.notify("Transaction selected")}
           />
           <TransactionList
-            currency={p.currency}
-            onPress={() => p.notify("Transaction selected")}
+            items={demoTransactions}
+            onItemPress={() => p.notify("Transaction selected")}
           />
         </H.ScrollShadow>
       );
@@ -443,6 +449,7 @@ export function BaseStory({ name, p }: { name: string; p: StoryProps }) {
     case "Select":
       return (
         <CurrencySelector
+          currencies={demoCurrencies}
           value={p.currency}
           onChange={p.setCurrency}
           disabled={disabled}
@@ -516,8 +523,8 @@ export function BaseStory({ name, p }: { name: string; p: StoryProps }) {
           </H.Tabs.ListContainer>
           <H.Tabs.Panel id="activity">
             <TransactionList
-              currency={p.currency}
-              onPress={() => p.notify("Transaction selected")}
+              items={demoTransactions}
+              onItemPress={() => p.notify("Transaction selected")}
             />
           </H.Tabs.Panel>
           <H.Tabs.Panel id="details">

@@ -40,32 +40,50 @@ import {
   currencyDigits,
   formatMoney,
   parseMinor,
-  makeQuote,
 } from "../design-system/money.mjs";
-import { transactions } from "../data/catalog";
+import {
+  boundedProgress,
+  assertStepper,
+  chartGeometry,
+  confirmTransfer,
+  limitProgress,
+  nextAmount,
+  reviewIdentity,
+} from "../design-system/finance-model.mjs";
+import { useQuoteProblem } from "../design-system/useQuoteProblem";
+import type {
+  AccountDetailsProps,
+  AmountInputProps,
+  BalanceCardProps,
+  ChartPoint,
+  ConfirmationActionProps,
+  CurrencySelectorProps,
+  DatePickerProps,
+  LimitMeterProps,
+  PaymentCardProps,
+  ReceiptProps,
+  Recipient,
+  SegmentedControlProps,
+  SpendingSummaryProps,
+  StepperProps,
+  TimelineStep,
+  Transaction,
+  TransferQuote,
+  TransferReviewProps,
+  VerificationState,
+} from "../design-system/finance-types";
 
-export type StoryProps = {
-  currency: string;
-  setCurrency: (v: string) => void;
-  amount: string;
-  setAmount: (v: string) => void;
-  state: string;
-  notify: (s: string) => void;
-  hidden: boolean;
-  setHidden: (v: boolean) => void;
-  size: "sm" | "md" | "lg";
-  variant: string;
-};
-const codes = ["USD", "GBP", "EUR", "INR", "JPY", "KWD"];
 export function MoneyText({
-  minor = 1284500,
-  currency = "USD",
+  minor,
+  currency,
+  locale = "en-US",
   signed = false,
   hidden = false,
   className = "",
 }: {
-  minor?: number;
-  currency?: string;
+  minor: number;
+  currency: string;
+  locale?: string;
   signed?: boolean;
   hidden?: boolean;
   className?: string;
@@ -75,24 +93,22 @@ export function MoneyText({
       className={`money ${signed && minor > 0 ? "positive" : ""} ${className}`}
       aria-label={hidden ? "Balance hidden" : undefined}
     >
-      {hidden ? "••••••" : formatMoney(minor, currency, "en-US", signed)}
+      {hidden ? "••••••" : formatMoney(minor, currency, locale, signed)}
     </span>
   );
 }
+
 export function CurrencySelector({
   value,
   onChange,
+  currencies,
+  label = "Currency",
   disabled = false,
   size = "md",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  disabled?: boolean;
-  size?: "sm" | "md";
-}) {
+}: CurrencySelectorProps) {
   return (
     <Select
-      aria-label="Currency"
+      aria-label={label}
       value={value}
       onChange={(v) => v && onChange(String(v))}
       isDisabled={disabled}
@@ -102,9 +118,11 @@ export function CurrencySelector({
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
-      <Select.Popover className={size === "sm" ? "currency-menu--sm" : undefined}>
+      <Select.Popover
+        className={size === "sm" ? "currency-menu--sm" : undefined}
+      >
         <ListBox>
-          {codes.map((c) => (
+          {currencies.map((c) => (
             <ListBox.Item key={c} id={c} textValue={c}>
               {c}
               <ListBox.ItemIndicator />
@@ -115,25 +133,22 @@ export function CurrencySelector({
     </Select>
   );
 }
+
 export function AmountInput({
   value,
   onChange,
   currency,
   onCurrency,
+  currencies,
+  availableBalance,
   disabled = false,
   error = false,
   label = "You send",
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  currency: string;
-  onCurrency: (v: string) => void;
-  disabled?: boolean;
-  error?: boolean;
-  label?: string;
-}) {
+}: AmountInputProps) {
   const id = useId();
-  const invalid = error || parseMinor(value, currency) === null;
+  const invalid =
+    error || (value !== "" && parseMinor(value, currency) === null);
+  const help = invalid || availableBalance;
   return (
     <div className={`amount-box ${invalid ? "invalid" : ""}`}>
       <div className="row between">
@@ -144,91 +159,108 @@ export function AmountInput({
           size="sm"
           value={currency}
           onChange={onCurrency}
+          currencies={currencies}
           disabled={disabled}
         />
       </div>
       <input
         id={id}
-        aria-label={label}
-        inputMode="decimal"
+        inputMode={currencyDigits(currency) === 0 ? "numeric" : "decimal"}
         autoComplete="off"
         value={value}
         disabled={disabled}
         aria-invalid={invalid}
-        aria-describedby={invalid ? id + "-error" : undefined}
+        aria-describedby={help ? id + "-help" : undefined}
         onChange={(e) => onChange(e.target.value)}
         className="amount-input"
       />
-      <div className="small muted">
-        {invalid ? (
-          <span id={id + "-error"} role="alert" className="danger">
-            Enter an amount with up to {currencyDigits(currency)} decimal
-            places.
-          </span>
-        ) : (
-          <>
-            Available balance <b>{formatMoney(1284500, currency)}</b>
-          </>
-        )}
-      </div>
+      {help && (
+        <div id={id + "-help"} className="small muted">
+          {invalid ? (
+            <span className="danger">
+              Enter an amount with up to {currencyDigits(currency)} decimal
+              places.
+            </span>
+          ) : (
+            availableBalance && (
+              <>
+                Available balance{" "}
+                <b>
+                  {formatMoney(
+                    availableBalance.minor,
+                    availableBalance.currency,
+                  )}
+                </b>
+              </>
+            )
+          )}
+        </div>
+      )}
     </div>
   );
 }
+
 export function BalanceCard({
-  currency,
+  balance,
   hidden,
-  setHidden,
-  onSend,
-  notify = () => {},
-}: Pick<StoryProps, "currency" | "hidden" | "setHidden"> & {
-  onSend: () => void;
-  notify?: StoryProps["notify"];
-}) {
+  onHiddenChange,
+  onTransfer,
+  onRequest,
+  onAdd,
+  onConvert,
+  description,
+}: BalanceCardProps) {
   return (
     <Card className="balance-card">
       <div className="balance-overview">
         <div className="row between">
           <span className="balance-label">Total balance</span>
           <Button
+            type="button"
             variant="ghost"
             isIconOnly
             aria-label={hidden ? "Show balance" : "Hide balance"}
-            onPress={() => setHidden(!hidden)}
+            onPress={() => onHiddenChange(!hidden)}
           >
             {hidden ? <EyeOff /> : <Eye />}
           </Button>
         </div>
-        <MoneyText
-          currency={currency}
-          hidden={hidden}
-          className="balance-amount"
-        />
-        <span className="small muted">
-          Available across your {currency} accounts
-        </span>
+        <MoneyText {...balance} hidden={hidden} className="balance-amount" />
+        {description && <span className="small muted">{description}</span>}
       </div>
       <div className="balance-actions" aria-label="Balance actions">
-        <Button variant="ghost" onPress={onSend}>
+        <Button
+          type="button"
+          variant="ghost"
+          onPress={onTransfer}
+          isDisabled={!onTransfer}
+        >
           <ArrowUpRight />
           Transfer
         </Button>
         <Button
+          type="button"
           variant="ghost"
-          onPress={() => notify("Request money · demo action")}
+          onPress={onRequest}
+          isDisabled={!onRequest}
         >
           <ArrowDownLeft />
           Request
         </Button>
         <Button
+          type="button"
           variant="ghost"
-          onPress={() => notify("Add money · demo action")}
+          onPress={onAdd}
+          isDisabled={!onAdd}
         >
           <Plus />
           Add
         </Button>
         <Button
+          type="button"
           variant="ghost"
-          onPress={() => notify("Convert currency · demo action")}
+          onPress={onConvert}
+          isDisabled={!onConvert}
         >
           <ArrowLeftRight />
           Convert
@@ -237,295 +269,338 @@ export function BalanceCard({
     </Card>
   );
 }
+
 export function TransactionRow({
-  item = transactions[0],
-  currency,
+  item,
   onPress,
 }: {
-  item?: (typeof transactions)[number];
-  currency: string;
-  onPress: () => void;
+  item: Transaction;
+  onPress?: (id: string) => void;
 }) {
-  return (
-    <button className="transaction-row" onClick={onPress}>
+  const content = (
+    <>
       <Avatar size="sm">
-        <Avatar.Fallback>{item.initials}</Avatar.Fallback>
+        <Avatar.Fallback>
+          {item.initials ||
+            item.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")}
+        </Avatar.Fallback>
       </Avatar>
       <span className="row-copy">
         <strong>{item.name}</strong>
         <span>{item.detail}</span>
       </span>
       <span className="align-right">
-        <MoneyText minor={item.minor} currency={currency} signed />
-        {item.status === "Pending" && (
-          <span className="status-text warning">Pending</span>
+        <MoneyText {...item.amount} signed />
+        {item.status !== "completed" && (
+          <span
+            className={`status-text ${item.status === "failed" ? "danger" : "warning"}`}
+          >
+            {item.status === "failed" ? "Failed" : "Pending"}
+          </span>
         )}
       </span>
-      <ChevronRight size={15} className="muted" />
+      {onPress && <ChevronRight className="muted" aria-hidden="true" />}
+    </>
+  );
+  return onPress ? (
+    <button
+      type="button"
+      className="transaction-row"
+      onClick={() => onPress(item.id)}
+    >
+      {content}
     </button>
+  ) : (
+    <div className="transaction-row">{content}</div>
   );
 }
+
 export function TransactionList({
-  currency,
-  empty = false,
+  items,
+  onItemPress,
+  onEmptyAction,
+}: {
+  items: readonly Transaction[];
+  onItemPress?: (id: string) => void;
+  onEmptyAction?: () => void;
+}) {
+  return items.length ? (
+    <div>
+      {items.map((item) => (
+        <TransactionRow key={item.id} item={item} onPress={onItemPress} />
+      ))}
+    </div>
+  ) : (
+    <EmptyState onAction={onEmptyAction} />
+  );
+}
+
+export function RecipientRow({
+  recipient,
+  selected = false,
   onPress,
 }: {
-  currency: string;
-  empty?: boolean;
-  onPress: () => void;
+  recipient: Recipient;
+  selected?: boolean;
+  onPress?: () => void;
 }) {
-  return empty ? (
-    <EmptyState onAction={onPress} />
+  const content = (
+    <>
+      <Avatar>
+        <Avatar.Fallback>
+          {recipient.initials ||
+            recipient.name
+              .split(" ")
+              .map((n) => n[0])
+              .join("")}
+        </Avatar.Fallback>
+      </Avatar>
+      <span className="row-copy">
+        <strong>{recipient.name}</strong>
+        <span>
+          {recipient.accountCurrency} account · •• {recipient.accountLast4}
+        </span>
+      </span>
+      {selected ? (
+        <CircleCheck aria-hidden="true" />
+      ) : onPress ? (
+        <ChevronRight aria-hidden="true" />
+      ) : null}
+    </>
+  );
+  return onPress ? (
+    <button
+      type="button"
+      className={`recipient-row ${selected ? "selected" : ""}`}
+      aria-pressed={selected}
+      onClick={onPress}
+    >
+      {content}
+    </button>
   ) : (
-    <div>
-      {transactions.map((t) => (
-        <TransactionRow
-          key={t.name}
-          item={t}
-          currency={currency}
-          onPress={onPress}
-        />
-      ))}
+    <div className={`recipient-row ${selected ? "selected" : ""}`}>
+      {content}
     </div>
   );
 }
-export function RecipientRow({
-  selected = false,
-  onPress,
-  accountCurrency = "GBP",
-}: {
-  selected?: boolean;
-  onPress: () => void;
-  accountCurrency?: string;
-}) {
-  return (
-    <button
-      className={`recipient-row ${selected ? "selected" : ""}`}
-      onClick={onPress}
-    >
-      <Avatar>
-        <Avatar.Fallback>JC</Avatar.Fallback>
-      </Avatar>
-      <span className="row-copy">
-        <strong>Jamie Chen</strong>
-        <span>{accountCurrency} account · •• 2841</span>
-      </span>
-      {selected ? <CircleCheck size={20} /> : <ChevronRight size={18} />}
-    </button>
-  );
-}
-export function AccountDetails({ notify }: Pick<StoryProps, "notify">) {
-  const [copied, setCopied] = useState(false);
+
+export function AccountDetails({ account, onCopy }: AccountDetailsProps) {
+  const [copiedValue, setCopiedValue] = useState<string | null>(null);
+  const [error, setError] = useState("");
   async function copy() {
     try {
-      await navigator.clipboard.writeText("GB82 WEST 1234 5698 7654 32");
-      setCopied(true);
-      notify("IBAN copied to clipboard");
+      await onCopy?.(account.iban);
+      setCopiedValue(account.iban);
+      setError("");
     } catch {
-      notify("Clipboard unavailable. Select the displayed IBAN to copy.");
+      setError("Unable to copy. Select the displayed IBAN to copy.");
     }
   }
   return (
     <Card className="bank-details">
       <div className="row between">
         <h3>Account details</h3>
-        <Button
-          variant="ghost"
-          isIconOnly
-          aria-label="Copy IBAN"
-          onPress={copy}
-        >
-          {copied ? <Check size={17} /> : <Copy size={17} />}
-        </Button>
+        {onCopy && (
+          <Button
+            type="button"
+            variant="ghost"
+            isIconOnly
+            aria-label={
+              copiedValue === account.iban ? "IBAN copied" : "Copy IBAN"
+            }
+            onPress={copy}
+          >
+            {copiedValue === account.iban ? <Check /> : <Copy />}
+          </Button>
+        )}
       </div>
       <dl>
         <div>
           <dt>Account holder</dt>
-          <dd>Alex Morgan</dd>
+          <dd>{account.holder}</dd>
         </div>
         <div>
           <dt>IBAN</dt>
-          <dd className="iban">GB82 WEST 1234 5698 7654 32</dd>
+          <dd className="iban">{account.iban}</dd>
         </div>
         <div>
           <dt>BIC / SWIFT</dt>
-          <dd>WESTGB2L</dd>
+          <dd>{account.bic}</dd>
         </div>
       </dl>
+      {error && (
+        <p role="alert" className="danger small">
+          {error}
+        </p>
+      )}
     </Card>
   );
 }
-export function FeeBreakdown({
-  minor = 100000,
-  currency = "USD",
-}: {
-  minor?: number;
-  currency?: string;
-}) {
-  const fee = 250;
+
+export function FeeBreakdown({ quote }: { quote: TransferQuote }) {
   return (
     <div className="fee-breakdown">
       <div>
         <span>Amount converted</span>
-        <MoneyText minor={Math.max(0, minor - fee)} currency={currency} />
+        <MoneyText
+          minor={Math.max(0, quote.send.minor - quote.fee.minor)}
+          currency={quote.send.currency}
+        />
       </div>
       <div>
         <span>Fee included</span>
-        <MoneyText minor={Math.min(minor, fee)} currency={currency} />
+        <MoneyText {...quote.fee} />
       </div>
       <div className="fee-total">
         <strong>Total deducted</strong>
-        <MoneyText minor={minor} currency={currency} />
+        <MoneyText {...quote.send} />
       </div>
-      <p className="micro muted">Illustrative fixed fee. No live pricing.</p>
     </div>
   );
 }
-export function ExchangeQuote({
-  amount,
-  currency,
-}: Pick<StoryProps, "amount" | "currency">) {
-  const minor = parseMinor(amount, currency);
-  const to = currency === "GBP" ? "EUR" : "GBP";
-  const quote = makeQuote(minor ?? 0, {
-    feeMinor: 250,
-    rateNumerator: currency === "GBP" ? 119 : 83,
-    from: currency,
-    to,
-  });
+
+export function ExchangeQuote({ quote }: { quote: TransferQuote }) {
+  const problem = useQuoteProblem(quote);
   return (
     <Card className="quote-card">
       <div className="row between">
         <span className="small muted">Recipient gets</span>
-        <span className="pill">{to}</span>
+        <span className="pill">{quote.receive.currency}</span>
       </div>
-      <MoneyText
-        minor={quote.receiveMinor}
-        currency={to}
-        className="quote-amount"
-      />
+      <MoneyText {...quote.receive} className="quote-amount" />
       <div className="row small muted">
-        <ArrowLeftRight size={14} />
-        {currency === "GBP" ? "1.19" : "0.83"} {to} per {currency} · demo rate
+        <ArrowLeftRight />
+        {quote.rate.numerator / quote.rate.denominator} {quote.receive.currency}{" "}
+        per {quote.send.currency}
       </div>
       <div className="rule" />
       <div className="row between small">
         <span>Fee included in send amount</span>
-        <MoneyText minor={quote.feeMinor} currency={currency} />
+        <MoneyText {...quote.fee} />
       </div>
-      {!quote.valid && (
-        <p className="danger small" role="alert">
-          Amount must exceed the demo fee.
-        </p>
-      )}
-      <p className="micro muted">Fixed illustrative quote · not live FX</p>
+      {problem && <p className="danger small">{problem}</p>}
     </Card>
   );
 }
-export function TransferTimeline({ state = "pending" }: { state?: string }) {
-  const complete = state === "completed";
-  const failed = state === "error";
+
+export function TransferTimeline({
+  steps,
+}: {
+  steps: readonly TimelineStep[];
+}) {
   return (
     <ol className="transfer-timeline">
-      {[
-        "Transfer created",
-        failed ? "Transfer needs attention" : "Money on its way",
-        complete ? "Received by Jamie" : "Estimated arrival",
-      ].map((s, i) => (
+      {steps.map((step) => (
         <li
-          key={s}
-          className={i === 0 || complete ? "done" : i === 1 ? "current" : ""}
+          key={step.id}
+          className={
+            step.status === "completed"
+              ? "done"
+              : step.status === "current" || step.status === "failed"
+                ? "current"
+                : ""
+          }
+          aria-current={step.status === "current" ? "step" : undefined}
         >
-          <span className="timeline-node">
-            {i === 0 || complete ? (
-              <Check size={12} />
-            ) : failed && i === 1 ? (
-              <X size={12} />
+          <span className="timeline-node" aria-hidden="true">
+            {step.status === "completed" ? (
+              <Check />
+            ) : step.status === "failed" ? (
+              <X />
             ) : (
               <span />
             )}
           </span>
           <div>
-            <strong>{s}</strong>
-            <p>
-              {i === 0
-                ? "Today, 10:42 AM"
-                : i === 1
-                  ? failed
-                    ? "Try another funding method."
-                    : complete
-                      ? "Completed at 10:43 AM."
-                      : "Processing with the recipient’s bank."
-                  : complete
-                    ? "Today, 10:44 AM"
-                    : "Usually within a few minutes."}
-            </p>
+            <strong>{step.label}</strong>
+            <span className="sr-only"> {step.status}</span>
+            <p>{step.detail}</p>
           </div>
         </li>
       ))}
     </ol>
   );
 }
-export function PaymentCard({ notify }: Pick<StoryProps, "notify">) {
-  const [frozen, setFrozen] = useState(false),
-    [reveal, setReveal] = useState(false);
+
+export function PaymentCard(props: PaymentCardProps) {
+  return <PaymentCardContent key={JSON.stringify(props.card)} {...props} />;
+}
+function PaymentCardContent({
+  card,
+  frozen,
+  onFrozenChange,
+  disabled = false,
+}: PaymentCardProps) {
+  const [reveal, setReveal] = useState(false);
   return (
     <div className="payment-card-story stack">
       <div className={`payment-card ${frozen ? "frozen" : ""}`}>
         <div className="row between">
-          <span className="card-brand">Finance UI</span>
-          {frozen ? <Snowflake size={22} /> : <CreditCard size={22} />}
+          <span className="card-brand">{card.brand}</span>
+          {frozen ? <Snowflake /> : <CreditCard />}
         </div>
         <div className="card-number">
-          {reveal ? "4242 4242 4242 2841" : "••••  ••••  ••••  2841"}
+          {reveal && card.number ? card.number : card.maskedNumber}
         </div>
         <div className="row between card-details">
           <div>
             <span className="micro">Cardholder</span>
-            <strong>Alex Morgan</strong>
+            <strong>{card.cardholder}</strong>
           </div>
           <div>
             <span className="micro">Valid thru</span>
-            <strong>08/29</strong>
+            <strong>{card.expiry}</strong>
           </div>
         </div>
         <span className="card-status">
-          {frozen ? "Frozen" : "Active"} · Demo debit card
+          {frozen ? "Frozen" : "Active"}
+          {card.description && ` · ${card.description}`}
         </span>
       </div>
-      <div className="row between">
-        <span className="small">Freeze card</span>
-        <Toggle
-          label="Freeze card"
-          selected={frozen}
-          onChange={(v) => {
-            setFrozen(v);
-            notify(v ? "Demo card frozen" : "Demo card unfrozen");
-          }}
-        />
-      </div>
-      <Button variant="secondary" onPress={() => setReveal(!reveal)}>
-        {reveal ? <EyeOff size={16} /> : <Eye size={16} />}{" "}
-        {reveal ? "Hide" : "Reveal"} demo number
-      </Button>
+      {onFrozenChange && (
+        <div className="row between">
+          <span className="small">Freeze card</span>
+          <Toggle
+            label="Freeze card"
+            selected={frozen}
+            onChange={onFrozenChange}
+            disabled={disabled}
+          />
+        </div>
+      )}
+      {card.number && (
+        <Button
+          type="button"
+          variant="secondary"
+          isDisabled={disabled}
+          onPress={() => setReveal(!reveal)}
+        >
+          {reveal ? <EyeOff /> : <Eye />}
+          {reveal ? "Hide" : "Reveal"} number
+        </Button>
+      )}
     </div>
   );
 }
-export function LineChart({ period = "Week" }: { period?: string }) {
-  const data =
-    period === "Week"
-      ? [120, 180, 90, 230, 160, 310, 260]
-      : [540, 700, 620, 810, 760, 980, 870];
-  const max = Math.max(...data) * 1.15;
-  const points = data
-    .map((n, i) => `${i * 48 + 8},${130 - (n / max) * 110}`)
-    .join(" ");
+
+export function LineChart({
+  points,
+  label = "Trend",
+}: {
+  points: readonly ChartPoint[];
+  label?: string;
+}) {
+  const coords = chartGeometry(points);
+  const summary = points.map((p) => `${p.label}: ${p.value}`).join(", ");
   return (
     <div className="chart">
       <svg
         viewBox="0 0 310 150"
         role="img"
-        aria-label={`${period} spending trend. Values: ${data.join(", ")}.`}
+        aria-label={`${label}. ${summary || "No data"}`}
       >
         <path
           d="M8 40H302 M8 85H302 M8 130H302"
@@ -533,54 +608,46 @@ export function LineChart({ period = "Week" }: { period?: string }) {
           fill="none"
         />
         <polyline
-          points={points}
+          points={coords.map((p) => `${p.x},${p.y}`).join(" ")}
           stroke="var(--chart-1)"
           strokeWidth="3"
           fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-        {data.map((n, i) => (
-          <circle
-            key={i}
-            cx={i * 48 + 8}
-            cy={130 - (n / max) * 110}
-            r="3"
-            fill="var(--chart-1)"
-          />
+        {coords.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3" fill="var(--chart-1)" />
         ))}
       </svg>
       <div className="row between micro muted">
-        {(period === "Week"
-          ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-          : ["Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct"]
-        ).map((s) => (
-          <span key={s}>{s}</span>
+        {points.map((p, i) => (
+          <span key={i}>{p.label}</span>
         ))}
       </div>
       <details className="chart-data micro">
         <summary>View chart data</summary>
-        {data.join(" · ")}
+        {summary || "No data"}
       </details>
     </div>
   );
 }
+
 export function SegmentedControl({
   value,
   onChange,
-  options = ["Week", "Month"],
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  options?: string[];
-}) {
+  options,
+  label = "View selection",
+  disabled = false,
+}: SegmentedControlProps) {
   return (
-    <div className="segmented" role="group" aria-label="View selection">
+    <div className="segmented" role="group" aria-label={label}>
       {options.map((o) => (
         <Button
+          type="button"
           key={o}
           variant="ghost"
           aria-pressed={value === o}
+          isDisabled={disabled}
           className={value === o ? "active" : ""}
           onPress={() => onChange(o)}
         >
@@ -590,92 +657,122 @@ export function SegmentedControl({
     </div>
   );
 }
-export function SpendingSummary({ currency }: Pick<StoryProps, "currency">) {
-  const [period, setPeriod] = useState("Week");
+
+export function SpendingSummary({
+  amount,
+  period,
+  onPeriodChange,
+  periods,
+  points,
+  description,
+}: SpendingSummaryProps) {
   return (
     <Card className="spending-card">
       <div className="spending-heading">
         <h3>Spending</h3>
-        <SegmentedControl value={period} onChange={setPeriod} />
+        <SegmentedControl
+          value={period}
+          onChange={onPeriodChange}
+          options={periods}
+          label="Spending period"
+        />
       </div>
-      <MoneyText
-        minor={period === "Week" ? 135000 : 598000}
-        currency={currency}
-        className="title-number"
-      />
-      <span className="small muted">
-        {period === "Week" ? "This week" : "This month"} ·{" "}
-        <span className="positive">12% less</span> than last period
-      </span>
-      <LineChart period={period} />
+      <MoneyText {...amount} className="title-number" />
+      {description && <span className="small muted">{description}</span>}
+      <LineChart points={points} label={`${period} spending`} />
     </Card>
   );
 }
+
 export function ProgressMeter({
-  value = 65,
-  label = "Monthly limit",
+  value,
+  label = "Progress",
 }: {
-  value?: number;
+  value: number | null;
   label?: string;
 }) {
-  const bounded = Math.max(0, Math.min(100, value));
+  const bounded = boundedProgress(value);
   return (
     <div className="stack-sm">
       <div className="row between small">
         <span>{label}</span>
-        <strong>{bounded}%</strong>
+        <strong>
+          {bounded === null ? "In progress" : `${Math.round(bounded)}%`}
+        </strong>
       </div>
       <div
         className="progress-track"
         role="progressbar"
         aria-label={label}
-        aria-valuenow={bounded}
+        aria-valuenow={bounded ?? undefined}
         aria-valuemin={0}
         aria-valuemax={100}
+        aria-valuetext={bounded === null ? "In progress" : undefined}
       >
-        <span style={{ width: `${bounded}%` }} />
+        <span style={{ width: `${bounded ?? 0}%` }} />
       </div>
     </div>
   );
 }
-export function LimitMeter({ currency }: Pick<StoryProps, "currency">) {
-  const [value, setValue] = useState(65);
+
+export function LimitMeter({
+  used,
+  limit,
+  onUsedChange,
+  label = "Monthly transfer limit",
+  step = 1,
+}: LimitMeterProps) {
+  const progress = limitProgress(used, limit);
   return (
     <Card className="stack">
-      <h3>Monthly transfer limit</h3>
+      <h3>{label}</h3>
       <div className="row">
-        <MoneyText minor={value * 10000} currency={currency} />
-        <span className="muted small">of {formatMoney(1000000, currency)}</span>
+        <MoneyText {...used} />
+        <span className="muted small">
+          of {formatMoney(limit.minor, limit.currency)}
+        </span>
       </div>
-      <ProgressMeter value={value} />
+      <ProgressMeter value={progress} label={label} />
       <p className="small muted">
-        {formatMoney((100 - value) * 10000, currency)} remaining
+        {formatMoney(Math.max(0, limit.minor - used.minor), limit.currency)}{" "}
+        remaining
       </p>
-      <Slider
-        aria-label="Adjust used limit"
-        value={value}
-        onChange={(v) => setValue(Number(v))}
-        minValue={0}
-        maxValue={100}
-        className="full"
-      >
-        <Label>Adjust used limit</Label>
-        <Slider.Output />
-        <Slider.Track>
-          <Slider.Fill />
-          <Slider.Thumb />
-        </Slider.Track>
-      </Slider>
+      {onUsedChange && (
+        <Slider
+          aria-label="Adjust used limit"
+          value={used.minor}
+          onChange={(v) => onUsedChange(Number(v))}
+          minValue={0}
+          maxValue={limit.minor}
+          step={step}
+          className="full"
+        >
+          <Label>Adjust used limit</Label>
+          <Slider.Output>
+            {formatMoney(used.minor, used.currency)}
+          </Slider.Output>
+          <Slider.Track>
+            <Slider.Fill />
+            <Slider.Thumb />
+          </Slider.Track>
+        </Slider>
+      )}
     </Card>
   );
 }
+
 export function VerificationStatus({
-  state = "default",
-  notify,
-}: Pick<StoryProps, "state" | "notify">) {
-  const [requested, setRequested] = useState(false);
-  const done = state === "completed",
-    error = state === "error";
+  status,
+  onAction,
+  description,
+}: {
+  status: VerificationState;
+  onAction?: () => void;
+  description?: string;
+}) {
+  const done = status === "verified",
+    error = status === "failed",
+    pending = status === "pending";
   return (
     <Card className="verification">
       <span className="round-icon">
@@ -686,54 +783,48 @@ export function VerificationStatus({
           ? "Identity verified"
           : error
             ? "We couldn’t verify your details"
-            : requested
+            : pending
               ? "Verification submitted"
               : "Verify your identity"}
       </h3>
-      <p className="muted small">
-        {done
-          ? "Your demo account is ready to use."
-          : requested
-            ? "The demo is now in review. No documents were uploaded."
-            : "Confirm your details to unlock higher transfer limits."}
-      </p>
+      {description && <p className="muted small">{description}</p>}
       <Chip size="sm" color={done ? "success" : error ? "danger" : "warning"}>
         {done
           ? "Verified"
           : error
             ? "Action needed"
-            : requested
+            : pending
               ? "In review"
               : "Not verified"}
       </Chip>
-      {!done && !requested && (
-        <Button
-          onPress={() => {
-            setRequested(true);
-            notify("Demo verification submitted");
-          }}
-        >
-          {error ? "Try again" : "Start demo verification"}
-          <ArrowRight size={15} />
+      {!done && !pending && onAction && (
+        <Button type="button" onPress={onAction}>
+          {error ? "Try again" : "Start verification"}
+          <ArrowRight />
         </Button>
       )}
     </Card>
   );
 }
-export function ConfirmationAction({
+
+export function ConfirmationAction(props: ConfirmationActionProps) {
+  return <ConfirmationContent key={props.reviewKey} {...props} />;
+}
+function ConfirmationContent({
   onConfirm,
+  reviewKey,
   disabled = false,
-}: {
-  onConfirm: () => void;
-  disabled?: boolean;
-}) {
-  const [ack, setAck] = useState(false);
+  label = "Confirm transfer",
+  description,
+}: ConfirmationActionProps) {
+  const [acknowledgedKey, setAcknowledgedKey] = useState<string | null>(null);
+  const ack = acknowledgedKey === reviewKey;
   return (
     <div className="confirmation-action stack">
       <Checkbox
         aria-label="I have checked the recipient and amount"
         isSelected={ack}
-        onChange={setAck}
+        onChange={(selected) => setAcknowledgedKey(selected ? reviewKey : null)}
         isDisabled={disabled}
       >
         <Checkbox.Content>
@@ -744,226 +835,314 @@ export function ConfirmationAction({
         </Checkbox.Content>
       </Checkbox>
       <Button
+        type="button"
         className="full"
         isDisabled={!ack || disabled}
-        onPress={onConfirm}
+        onPress={() => {
+          if (ack && !disabled) onConfirm();
+        }}
       >
-        Confirm demo transfer
-        <ArrowUpRight size={16} />
+        {label}
+        <ArrowUpRight />
       </Button>
-      <p className="micro muted center">Demo only. No money will move.</p>
+      {description && <p className="micro muted center">{description}</p>}
     </div>
   );
 }
-export function TransferReview(p: StoryProps) {
-  const [sent, setSent] = useState(false);
-  const minor = parseMinor(p.amount, p.currency);
-  if (sent)
-    return (
-      <Receipt currency={p.currency} minor={minor ?? 0} state="completed" />
-    );
+
+export function TransferReview({
+  quote,
+  recipient,
+  onConfirm,
+  disabled = false,
+  confirmLabel,
+  description,
+}: TransferReviewProps) {
+  const identity = reviewIdentity(quote, recipient);
+  const [failure, setFailure] = useState<{
+    key: string;
+    message: string;
+  } | null>(null);
+  const problem = useQuoteProblem(quote, recipient);
+  function confirm() {
+    try {
+      const snapshot = confirmTransfer(quote, recipient);
+      setFailure(null);
+      onConfirm(snapshot);
+    } catch (error) {
+      setFailure({
+        key: identity,
+        message:
+          error instanceof Error
+            ? error.message
+            : "Unable to confirm this transfer.",
+      });
+    }
+  }
   return (
     <Card className="transfer-review stack">
       <h3>Review transfer</h3>
-      <RecipientRow
-        selected
-        accountCurrency={p.currency === "GBP" ? "EUR" : "GBP"}
-        onPress={() => p.notify("Jamie Chen · account ending 2841")}
-      />
-      <ExchangeQuote amount={p.amount} currency={p.currency} />
-      <FeeBreakdown currency={p.currency} minor={minor ?? 0} />
+      <RecipientRow recipient={recipient} selected />
+      <ExchangeQuote quote={quote} />
+      <FeeBreakdown quote={quote} />
       <ConfirmationAction
-        disabled={p.state === "disabled" || minor === null || minor <= 250}
-        onConfirm={() => {
-          setSent(true);
-          p.notify("Demo transfer confirmed");
-        }}
+        reviewKey={identity}
+        disabled={disabled || !!problem}
+        onConfirm={confirm}
+        label={confirmLabel}
+        description={description}
       />
+      {(problem || failure?.key === identity) && (
+        <p className="danger small" role="alert">
+          {problem || failure?.message}
+        </p>
+      )}
     </Card>
   );
 }
-export function EmptyState({ onAction }: { onAction: () => void }) {
+
+export function EmptyState({
+  onAction,
+  title = "No transactions yet",
+  description = "Your transactions will appear here.",
+  actionLabel = "Add transaction",
+}: {
+  onAction?: () => void;
+  title?: string;
+  description?: string;
+  actionLabel?: string;
+}) {
   return (
     <div className="empty-state">
       <span className="round-icon">
         <Wallet />
       </span>
-      <h3>No transactions yet</h3>
-      <p className="muted small">
-        Your money, in motion. Add a transaction to see spending and transfers
-        in one place.
-      </p>
-      <Button variant="secondary" onPress={onAction}>
-        <Plus size={16} />
-        Add demo transaction
-      </Button>
+      <h3>{title}</h3>
+      <p className="muted small">{description}</p>
+      {onAction && (
+        <Button type="button" variant="secondary" onPress={onAction}>
+          <Plus />
+          {actionLabel}
+        </Button>
+      )}
     </div>
   );
 }
+
 export function Receipt({
-  currency,
-  state = "completed",
-  minor = 100000,
-}: {
-  currency: string;
-  state?: string;
-  minor?: number;
-}) {
-  const done = state === "completed";
+  transfer,
+  status,
+  reference,
+  steps,
+  onDownload,
+}: ReceiptProps) {
+  const done = status === "completed";
   return (
     <Card className="receipt stack">
       <div className="receipt-heading">
         <span className="round-icon">
-          {done ? <CircleCheck /> : <Clock3 />}
+          {done ? (
+            <CircleCheck />
+          ) : status === "failed" ? (
+            <TriangleAlert />
+          ) : (
+            <Clock3 />
+          )}
         </span>
         <span className="small muted">Transfer receipt</span>
       </div>
-      <h3>{done ? "Transfer complete" : "Transfer in progress"}</h3>
-      <MoneyText minor={minor} currency={currency} className="quote-amount" />
-      <p className="muted small">To Jamie Chen · reference FIN-2026-1042</p>
-      <div className="rule" />
-      <TransferTimeline state={state} />
-      <Button
-        variant="secondary"
-        onPress={() => {
-          const text = `DEMO RECEIPT\nReference: FIN-2026-1042\n${formatMoney(minor, currency)} to Jamie Chen\nStatus: ${done ? "Completed" : "Pending"}\nNo money moved.`;
-          const url = URL.createObjectURL(
-            new Blob([text], { type: "text/plain" }),
-          );
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "demo-transfer-receipt.txt";
-          a.click();
-          URL.revokeObjectURL(url);
-        }}
-      >
-        <Download size={16} />
-        Download demo receipt
-      </Button>
+      <h3>
+        {done
+          ? "Transfer complete"
+          : status === "failed"
+            ? "Transfer failed"
+            : "Transfer in progress"}
+      </h3>
+      <MoneyText {...transfer.quote.send} className="quote-amount" />
+      <p className="muted small">
+        To {transfer.recipient.name}
+        {reference && ` · reference ${reference}`}
+      </p>
+      {steps && (
+        <>
+          <div className="rule" />
+          <TransferTimeline steps={steps} />
+        </>
+      )}
+      {onDownload && (
+        <Button type="button" variant="secondary" onPress={onDownload}>
+          <Download />
+          Download receipt
+        </Button>
+      )}
     </Card>
   );
 }
+
 export function NumericKeypad({
   value,
   onChange,
-  currency = "USD",
+  currency,
   disabled = false,
 }: {
   value: string;
-  onChange: (s: string) => void;
-  currency?: string;
+  onChange: (value: string) => void;
+  currency: string;
   disabled?: boolean;
 }) {
   return (
     <div className="keypad">
-      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map((k) => (
-        <Button
-          key={k}
-          variant="ghost"
-          isDisabled={disabled}
-          aria-label={k === "⌫" ? "Backspace" : k === "." ? "Decimal point" : k}
-          onPress={() => {
-            if (k === "⌫") return onChange(value.slice(0, -1) || "0");
-            if (
-              k === "." &&
-              (currencyDigits(currency) === 0 || value.includes("."))
-            )
-              return;
-            const next = (value === "0" && k !== "." ? "" : value) + k;
-            if (parseMinor(next, currency) !== null) onChange(next);
-          }}
-        >
-          {k === "⌫" ? <Delete size={22} /> : k}
-        </Button>
-      ))}
+      {["1", "2", "3", "4", "5", "6", "7", "8", "9", ".", "0", "⌫"].map(
+        (key) => (
+          <Button
+            type="button"
+            key={key}
+            variant="ghost"
+            isDisabled={
+              disabled || (key === "." && currencyDigits(currency) === 0)
+            }
+            aria-label={
+              key === "⌫" ? "Backspace" : key === "." ? "Decimal point" : key
+            }
+            onPress={() => onChange(nextAmount(value, key, currency))}
+          >
+            {key === "⌫" ? <Delete /> : key}
+          </Button>
+        ),
+      )}
     </div>
   );
 }
-export function DatePicker() {
-  const [value, setValue] = useState("2026-10-28");
+
+export function DatePicker({
+  value,
+  onChange,
+  min,
+  max,
+  label = "Scheduled transfer date",
+  disabled = false,
+}: DatePickerProps) {
+  const id = useId();
   return (
-    <TextField className="stack-sm">
-      <Label>Scheduled transfer date</Label>
+    <TextField className="stack-sm" isDisabled={disabled}>
+      <Label>{label}</Label>
       <Input
         type="date"
-        min="2026-10-25"
+        min={min}
+        max={max}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+        onChange={(e) => onChange(e.target.value)}
+        aria-describedby={id}
       />
-      <span className="small muted">
+      <span id={id} className="small muted">
         {value ? "Scheduled for " + value : "Choose a transfer date"}
       </span>
     </TextField>
   );
 }
-export function Stepper() {
-  const [v, setV] = useState(1);
+
+export function Stepper({
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  label = "Interval",
+  description,
+  disabled = false,
+}: StepperProps) {
+  assertStepper({ value, min, max, step });
+  const id = useId();
   return (
     <div className="stack-sm">
-      <Label>Recurring interval, months</Label>
+      <label htmlFor={id}>{label}</label>
       <div className="row">
         <Button
+          type="button"
           variant="tertiary"
           isIconOnly
-          aria-label="Decrease interval"
-          isDisabled={v <= 1}
-          onPress={() => setV(v - 1)}
+          aria-label={`Decrease ${label}`}
+          isDisabled={disabled || value <= min}
+          onPress={() => onChange(Math.max(min, value - step))}
         >
           −
         </Button>
         <Input
-          aria-label="Interval"
+          id={id}
+          aria-describedby={description ? id + "-description" : undefined}
           className="stepper-input"
           type="number"
-          min={1}
-          max={12}
-          value={String(v)}
+          min={min}
+          max={max}
+          step={step}
+          disabled={disabled}
+          value={String(value)}
           onChange={(e) => {
-            const n = +e.target.value;
-            if (Number.isInteger(n) && n >= 1 && n <= 12) setV(n);
+            const n = Number(e.target.value);
+            if (
+              e.target.value &&
+              Number.isSafeInteger(n) &&
+              n >= min &&
+              n <= max
+            )
+              onChange(n);
           }}
         />
         <Button
+          type="button"
           variant="tertiary"
           isIconOnly
-          aria-label="Increase interval"
-          isDisabled={v >= 12}
-          onPress={() => setV(v + 1)}
+          aria-label={`Increase ${label}`}
+          isDisabled={disabled || value >= max}
+          onPress={() => onChange(Math.min(max, value + step))}
         >
           +
         </Button>
       </div>
-      <span className="small muted">
-        Every {v} {v === 1 ? "month" : "months"}
-      </span>
+      {description && (
+        <span id={id + "-description"} className="small muted">
+          {description}
+        </span>
+      )}
     </div>
   );
 }
-export function DataTable({ currency }: Pick<StoryProps, "currency">) {
+
+export function DataTable({
+  items,
+  label = "Recent transactions",
+}: {
+  items: readonly Transaction[];
+  label?: string;
+}) {
   return (
     <div className="table-scroll">
       <table>
-        <caption className="sr-only">Recent transactions</caption>
+        <caption className="sr-only">{label}</caption>
         <thead>
           <tr>
-            <th>Transaction</th>
-            <th>Status</th>
-            <th>Amount</th>
+            <th scope="col">Transaction</th>
+            <th scope="col">Status</th>
+            <th scope="col">Amount</th>
           </tr>
         </thead>
         <tbody>
-          {transactions.map((t) => (
-            <tr key={t.name}>
-              <th scope="row">{t.name}</th>
+          {items.map((item) => (
+            <tr key={item.id}>
+              <th scope="row">{item.name}</th>
               <td>
                 <span
-                  className={`small ${t.status === "Pending" ? "warning" : "positive"}`}
+                  className={`small ${item.status === "pending" ? "warning" : item.status === "failed" ? "danger" : "positive"}`}
                 >
-                  {t.status}
+                  {item.status === "completed"
+                    ? "Completed"
+                    : item.status === "pending"
+                      ? "Pending"
+                      : "Failed"}
                 </span>
               </td>
               <td>
-                <MoneyText minor={t.minor} currency={currency} signed />
+                <MoneyText {...item.amount} signed />
               </td>
             </tr>
           ))}
@@ -972,6 +1151,7 @@ export function DataTable({ currency }: Pick<StoryProps, "currency">) {
     </div>
   );
 }
+
 export function Toggle({
   selected,
   onChange,
@@ -997,166 +1177,4 @@ export function Toggle({
       </Switch.Content>
     </Switch>
   );
-}
-
-export function FinanceStory({ name, p }: { name: string; p: StoryProps }) {
-  const [selected, setSelected] = useState(false),
-    [period, setPeriod] = useState("Week"),
-    [empty, setEmpty] = useState(false);
-  const minor = parseMinor(p.amount, p.currency) ?? 0;
-  switch (name) {
-    case "MoneyText":
-      return (
-        <div className="stack center">
-          <MoneyText
-            minor={minor}
-            currency={p.currency}
-            hidden={p.hidden}
-            className="balance-amount"
-          />
-          <MoneyText minor={-minor} currency={p.currency} signed />
-          <MoneyText minor={minor} currency={p.currency} signed />
-          <span className="micro muted">
-            Tabular figures · integer minor units
-          </span>
-        </div>
-      );
-    case "CurrencySelector":
-      return (
-        <CurrencySelector
-          value={p.currency}
-          onChange={p.setCurrency}
-          disabled={p.state === "disabled"}
-        />
-      );
-    case "AmountInput":
-      return (
-        <div className="stack">
-          <AmountInput
-            value={p.amount}
-            onChange={p.setAmount}
-            currency={p.currency}
-            onCurrency={p.setCurrency}
-            error={p.state === "error"}
-            disabled={p.state === "disabled"}
-          />
-          <NumericKeypad
-            value={p.amount}
-            onChange={p.setAmount}
-            currency={p.currency}
-            disabled={p.state === "disabled"}
-          />
-        </div>
-      );
-    case "BalanceCard":
-      return (
-        <BalanceCard
-          {...p}
-          onSend={() =>
-            p.notify(
-              "Send money action · open the Send money pattern to try the full flow",
-            )
-          }
-        />
-      );
-    case "TransactionRow":
-      return (
-        <TransactionRow
-          currency={p.currency}
-          onPress={() =>
-            p.notify("Alex Morgan · transfer received · completed")
-          }
-        />
-      );
-    case "TransactionList":
-      return (
-        <TransactionList
-          currency={p.currency}
-          empty={p.state === "empty" && !empty}
-          onPress={() => {
-            setEmpty(true);
-            p.notify("Transaction selected");
-          }}
-        />
-      );
-    case "RecipientRow":
-      return (
-        <RecipientRow
-          selected={selected}
-          onPress={() => setSelected(!selected)}
-        />
-      );
-    case "AccountDetails":
-      return <AccountDetails {...p} />;
-    case "FeeBreakdown":
-      return <FeeBreakdown minor={minor} currency={p.currency} />;
-    case "ExchangeQuote":
-      return <ExchangeQuote {...p} />;
-    case "TransferTimeline":
-      return <TransferTimeline state={p.state} />;
-    case "PaymentCard":
-      return <PaymentCard {...p} />;
-    case "SpendingSummary":
-      return <SpendingSummary {...p} />;
-    case "LimitMeter":
-      return <LimitMeter {...p} />;
-    case "VerificationStatus":
-      return <VerificationStatus {...p} />;
-    case "TransferReview":
-      return <TransferReview {...p} />;
-    case "EmptyState":
-      return empty ? (
-        <TransactionList
-          currency={p.currency}
-          onPress={() => p.notify("Demo transaction selected")}
-        />
-      ) : (
-        <EmptyState onAction={() => setEmpty(true)} />
-      );
-    case "Receipt":
-      return (
-        <Receipt
-          currency={p.currency}
-          minor={minor}
-          state={p.state === "default" ? "completed" : p.state}
-        />
-      );
-    case "NumericKeypad":
-      return (
-        <div className="stack">
-          <MoneyText
-            currency={p.currency}
-            minor={minor}
-            className="balance-amount"
-          />
-          <NumericKeypad
-            value={p.amount}
-            onChange={p.setAmount}
-            currency={p.currency}
-            disabled={p.state === "disabled"}
-          />
-        </div>
-      );
-    case "DatePicker":
-      return <DatePicker />;
-    case "ProgressMeter":
-      return <ProgressMeter value={p.state === "completed" ? 100 : 65} />;
-    case "LineChart":
-      return <LineChart />;
-    case "SegmentedControl":
-      return <SegmentedControl value={period} onChange={setPeriod} />;
-    case "Stepper":
-      return <Stepper />;
-    case "DataTable":
-      return <DataTable {...p} />;
-    case "ConfirmationAction":
-      return (
-        <ConfirmationAction
-          disabled={p.state === "disabled"}
-          onConfirm={() => p.notify("Demo action confirmed · no money moved")}
-        />
-      );
-    default:
-      return null;
-  }
 }

@@ -1,120 +1,23 @@
 import { useState, useEffect, useRef } from "react";
-import { Button, Card } from "@heroui/react";
+import { Button } from "@heroui/react";
 import {
-  ArrowUpRight,
-  ArrowRight,
-  Check,
-  ChevronDown,
-  ChevronRight,
-  Search,
-  Sun,
-  Moon,
-  Copy,
-  Download,
   Layers3,
-  Palette,
-  Type,
-  Ruler,
-  Radius,
-  Box,
-  Zap,
-  ShieldCheck,
-  Grid2X2,
-  Code2,
-  SlidersHorizontal,
-  RotateCcw,
-  Smartphone,
-  Monitor,
-  ExternalLink,
-  Home,
-  CreditCard,
-  Users,
+  ChevronRight,
+  Moon,
+  Sun,
+  Download,
+  Check,
   X,
 } from "lucide-react";
-import { tokens } from "./design-system/tokens";
 import tokenSource from "./design-system/tokens.json";
-import nativeChatSource from "../native/chat.tsx?raw";
-import { ChatStory, ChatThread } from "./components/chat";
-import nativeFinanceSource from "../native/finance.tsx?raw";
-import { contrast, parseMinor } from "./design-system/money.mjs";
-import {
-  foundationNames,
-  baseNames,
-  extensionNames,
-  financeNames,
-  patternNames,
-  chatNames,
-  chatStates,
-  descriptions,
-  componentTokens,
-  compositions,
-  gaps,
-  references,
-} from "./data/catalog";
-import { BaseStory } from "./components/BaseStory";
-import {
-  FinanceStory,
-  BalanceCard,
-  TransactionList,
-  AmountInput,
-  ExchangeQuote,
-  TransferReview,
-  TransferTimeline,
-  PaymentCard,
-  VerificationStatus,
-  AccountDetails,
-  type StoryProps,
-} from "./components/finance";
-
-type Section =
-  | "Foundations"
-  | "Primitives"
-  | "Finance"
-  | "Extensions"
-  | "Chat"
-  | "Patterns"
-  | "Audit"
-  | "References";
-const iconMap: Record<string, typeof Palette> = {
-  Overview: Layers3,
-  Colors: Palette,
-  Typography: Type,
-  Spacing: Ruler,
-  Radius: Radius,
-  Elevation: Box,
-  Motion: Zap,
-  Accessibility: ShieldCheck,
-};
-const groups: [Section, string[]][] = [
-  ["Foundations", foundationNames],
-  ["Primitives", baseNames],
-  ["Finance", financeNames],
-  ["Extensions", extensionNames],
-  ["Chat", chatNames],
-  ["Patterns", patternNames],
-];
-const fromHash = () => {
-  try {
-    const [s, n] = decodeURIComponent(location.hash.slice(1)).split("/");
-    const valid =
-      groups.some(([group, names]) => group === s && names.includes(n)) ||
-      (s === "Audit" && n === "Finance coverage") ||
-      (s === "References" && n === "Benchmarks");
-    return valid ? [s, n] : ["Foundations", "Overview"];
-  } catch {
-    return ["Foundations", "Overview"];
-  }
-};
-const typeStyles = (name: string) => {
-  const s = tokens.typography[name as keyof typeof tokens.typography];
-  return {
-    fontSize: s.size,
-    lineHeight: s.lineHeight + "px",
-    fontWeight: s.weight,
-    letterSpacing: s.letterSpacing,
-  };
-};
-
+import { chatStates, descriptions } from "./data/catalog";
+import type { Section, StoryProps } from "./workshop/types";
+import { fromHash } from "./workshop/navigation";
+import { Sidebar } from "./workshop/Sidebar";
+import { StoryPanel } from "./workshop/StoryPanel";
+import { Foundations } from "./workshop/Foundations";
+import { Pattern } from "./workshop/Patterns";
+import { Audit, Benchmarks } from "./workshop/ReferencePages";
 function App() {
   const initial = fromHash();
   const [section, setSection] = useState<Section>(initial[0] as Section),
@@ -127,7 +30,6 @@ function App() {
       Foundations: true,
       Finance: true,
     }),
-    [tab, setTab] = useState("Preview"),
     [currency, setCurrency] = useState("USD"),
     [amount, setAmount] = useState("1000.00"),
     [state, setState] = useState(
@@ -138,12 +40,39 @@ function App() {
     [size, setSize] = useState<"sm" | "md" | "lg">("md"),
     [variant, setVariant] = useState("primary"),
     [hidden, setHidden] = useState(false),
-    [reset, setReset] = useState(0),
-    [device, setDevice] = useState("mobile"),
     [logs, setLogs] = useState<string[]>([]),
     [toast, setToast] = useState(""),
     [sidebar, setSidebar] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const initialRoute = useRef(true);
+  useEffect(() => {
+    if (initialRoute.current) {
+      initialRoute.current = false;
+      return;
+    }
+    headingRef.current?.focus({ preventScroll: true });
+  }, [section, name]);
+  useEffect(() => {
+    if (sidebar) searchRef.current?.focus();
+  }, [sidebar]);
+  function closeNavigation() {
+    setSidebar(false);
+    menuRef.current?.focus();
+  }
+  useEffect(() => {
+    if (!sidebar) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setSidebar(false);
+        menuRef.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", escape);
+    return () => window.removeEventListener("keydown", escape);
+  }, [sidebar]);
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -154,7 +83,8 @@ function App() {
     const k = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
-        searchRef.current?.focus();
+        if (window.matchMedia("(max-width: 760px)").matches) setSidebar(true);
+        else searchRef.current?.focus();
       }
     };
     window.addEventListener("keydown", k);
@@ -163,8 +93,6 @@ function App() {
       setSection(s as Section);
       setName(n);
       setState(s === "Chat" ? chatStates[n]?.[0] || "default" : "default");
-      setTab("Preview");
-      setReset((v) => v + 1);
     };
     window.addEventListener("hashchange", hash);
     return () => {
@@ -180,9 +108,7 @@ function App() {
   function navigate(s: Section, n: string) {
     setSection(s);
     setName(n);
-    setTab("Preview");
     setState(s === "Chat" ? chatStates[n]?.[0] || "default" : "default");
-    setReset((v) => v + 1);
     setOpen((v) => ({ ...v, [s]: true }));
     setSidebar(false);
     location.hash = encodeURIComponent(s + "/" + n);
@@ -226,112 +152,36 @@ function App() {
     section === "Foundations" && name === "Overview"
       ? "Finance UI"
       : name.replace(/([a-z])([A-Z])/g, "$1 $2");
-  const mapping =
-    section === "Primitives"
-      ? componentTokens[name] || []
-      : Array.from(
-          new Set(
-            (compositions[name] || []).flatMap(
-              (n) =>
-                componentTokens[n] || ["foreground", "spacing.4", "radius.lg"],
-            ),
-          ),
-        );
   return (
     <div className={`workshop ${sidebar ? "nav-open" : ""}`}>
-      <aside className="sidebar">
+      <Sidebar
+        section={section}
+        name={name}
+        query={query}
+        setQuery={setQuery}
+        open={open}
+        setOpen={setOpen}
+        navigate={navigate}
+        searchRef={searchRef}
+        onClose={closeNavigation}
+      />
+      {sidebar && (
         <button
-          className="brand"
-          onClick={() => navigate("Foundations", "Overview")}
-        >
-          <span className="brand-mark">
-            <Layers3 size={21} />
-          </span>
-          <span>
-            Finance UI<small>Design system</small>
-          </span>
-        </button>
-        <div className="library-version">
-          <span className="version-dot" />
-          HeroUI Native foundation<span>v0.2</span>
-        </div>
-        <div className="nav-search">
-          <Search size={15} />
-          <input
-            ref={searchRef}
-            placeholder="Find a component…"
-            aria-label="Find a component"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-          <kbd>⌘ K</kbd>
-        </div>
-        <nav aria-label="Component navigation">
-          {groups.map(([group, names]) => {
-            const filtered = names.filter(
-              (n) => !query || n.toLowerCase().includes(query.toLowerCase()),
-            );
-            if (!filtered.length) return null;
-            return (
-              <div className="nav-group" key={group}>
-                <button
-                  className="nav-group-title"
-                  aria-expanded={!!open[group] || !!query}
-                  onClick={() => setOpen((v) => ({ ...v, [group]: !v[group] }))}
-                >
-                  <ChevronDown
-                    size={13}
-                    className={!open[group] && !query ? "closed" : ""}
-                  />
-                  {group}
-                  <span>{names.length}</span>
-                </button>
-                {(open[group] || query) &&
-                  filtered.map((n) => {
-                    const Icon = iconMap[n] || Box;
-                    return (
-                      <button
-                        key={n}
-                        className={`nav-item ${section === group && name === n ? "active" : ""}`}
-                        onClick={() => navigate(group, n)}
-                      >
-                        <Icon size={14} />
-                        <span>{n.replace(/([a-z])([A-Z])/g, "$1 $2")}</span>
-                      </button>
-                    );
-                  })}
-              </div>
-            );
-          })}
-          <div className="nav-divider" />
-          <button
-            className={`nav-item ${section === "Audit" ? "active" : ""}`}
-            onClick={() => navigate("Audit", "Finance coverage")}
-          >
-            <ShieldCheck size={15} />
-            Finance coverage
-          </button>
-          <button
-            className={`nav-item ${section === "References" ? "active" : ""}`}
-            onClick={() => navigate("References", "Benchmarks")}
-          >
-            <Grid2X2 size={15} />
-            Mobbin benchmarks
-          </button>
-        </nav>
-        <div className="sidebar-bottom">
-          <span className="mini-avatar">H</span>
-          <div>
-            Built on HeroUI<small>Shared tokens · composable parts</small>
-          </div>
-          <ExternalLink size={13} />
-        </div>
-      </aside>
+          className="nav-backdrop"
+          type="button"
+          aria-label="Close navigation"
+          onClick={closeNavigation}
+        />
+      )}
       <div className="workspace">
         <header className="topbar">
           <div className="row">
             <button
+              type="button"
               className="icon-button mobile-nav"
+              ref={menuRef}
+              aria-expanded={sidebar}
+              aria-controls="workshop-navigation"
               aria-label="Toggle navigation"
               onClick={() => setSidebar(!sidebar)}
             >
@@ -353,6 +203,7 @@ function App() {
               Browser catalog
             </span>
             <button
+              type="button"
               className="icon-button"
               aria-label={
                 theme === "light"
@@ -378,7 +229,9 @@ function App() {
         <main className="main">
           <div className="page-heading">
             <div className="page-kicker">{section}</div>
-            <h1>{title}</h1>
+            <h1 ref={headingRef} tabIndex={-1}>
+              {title}
+            </h1>
             <p>
               {descriptions[name] ||
                 (section === "Audit"
@@ -394,318 +247,19 @@ function App() {
             <Foundations name={name} theme={theme} navigate={navigate} p={p} />
           )}
           {isStory && (
-            <>
-              <div className="story-tabs">
-                {["Preview", "Usage example", "Token mapping"].map((t) => (
-                  <button
-                    key={t}
-                    className={tab === t ? "active" : ""}
-                    onClick={() => setTab(t)}
-                  >
-                    {t === "Preview" ? (
-                      <Box size={14} />
-                    ) : t === "Usage example" ? (
-                      <Code2 size={14} />
-                    ) : (
-                      <Layers3 size={14} />
-                    )}{" "}
-                    {t}
-                  </button>
-                ))}
-                <span className="tab-spacer" />
-                <span className="micro muted">
-                  {section === "Primitives"
-                    ? "HeroUI React adapter"
-                    : "Shared contract · browser implementation"}
-                </span>
-              </div>
-              <div className="story-layout">
-                <section className="story-canvas">
-                  <div className="canvas-toolbar">
-                    <span className="small muted">
-                      {name} / {state}
-                    </span>
-                    <div className="row">
-                      <button
-                        className={`icon-button ${device === "mobile" ? "selected" : ""}`}
-                        aria-label="Mobile preview width"
-                        onClick={() => setDevice("mobile")}
-                      >
-                        <Smartphone size={16} />
-                      </button>
-                      <button
-                        className={`icon-button ${device === "wide" ? "selected" : ""}`}
-                        aria-label="Wide preview width"
-                        onClick={() => setDevice("wide")}
-                      >
-                        <Monitor size={16} />
-                      </button>
-                      <button
-                        className="icon-button"
-                        aria-label="Reset component"
-                        onClick={() => {
-                          setReset((v) => v + 1);
-                          setState(
-                            section === "Chat"
-                              ? chatStates[name][0]
-                              : "default",
-                          );
-                          setAmount("1000.00");
-                          setCurrency("USD");
-                          setHidden(false);
-                          notify("Component reset");
-                        }}
-                      >
-                        <RotateCcw size={15} />
-                      </button>
-                    </div>
-                  </div>
-                  {tab === "Preview" ? (
-                    <div className={`story-stage ${device}`} key={name + reset}>
-                      <div
-                        className={`story-instance ${size} ${section === "Chat" ? "chat-instance" : ""}`}
-                      >
-                        {state === "loading" && section !== "Chat" ? (
-                          <div
-                            className="stack full"
-                            role="status"
-                            aria-label="Loading component"
-                          >
-                            <div className="loading-line" />
-                            <div className="loading-line short" />
-                            <div className="loading-block" />
-                          </div>
-                        ) : section === "Primitives" ? (
-                          <BaseStory name={name} p={p} />
-                        ) : section === "Chat" ? (
-                          <ChatStory key={state} name={name} p={p} />
-                        ) : (
-                          <FinanceStory name={name} p={p} />
-                        )}
-                      </div>
-                    </div>
-                  ) : tab === "Usage example" ? (
-                    <Usage name={name} section={section} notify={notify} />
-                  ) : (
-                    <div className="mapping-panel">
-                      <h3>Semantic token contract</h3>
-                      <p className="small muted">
-                        These roles flow from the shared token source into the
-                        HeroUI theme.
-                      </p>
-                      <div className="token-chips">
-                        {mapping.map((k) => (
-                          <code key={k}>{k}</code>
-                        ))}
-                      </div>
-                      <h3>Composed from</h3>
-                      <div className="composition-chain">
-                        {(compositions[name] || [name]).map((n, i) => (
-                          <button
-                            key={n}
-                            onClick={() =>
-                              navigate(
-                                baseNames.includes(n)
-                                  ? "Primitives"
-                                  : extensionNames.includes(n)
-                                    ? "Extensions"
-                                    : chatNames.includes(n)
-                                      ? "Chat"
-                                      : "Finance",
-                                n,
-                              )
-                            }
-                          >
-                            {i > 0 && <PlusMark />}
-                            {n}
-                            <ArrowUpRight size={12} />
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  <div className="canvas-foot">
-                    <ShieldCheck size={13} />
-                    <span>
-                      Browser interaction preview. Native runtime verification
-                      is tracked separately.
-                    </span>
-                  </div>
-                </section>
-                <aside className="controls">
-                  <div className="controls-title">
-                    <SlidersHorizontal size={15} />
-                    <h3>Playground</h3>
-                  </div>
-                  <p className="small muted">
-                    Change the props. See the result.
-                  </p>
-                  <Control label="State">
-                    <select
-                      aria-label="Story state"
-                      value={state}
-                      onChange={(e) => setState(e.target.value)}
-                    >
-                      {(section === "Chat"
-                        ? chatStates[name]
-                        : [
-                            "default",
-                            "loading",
-                            ...(name === "TransactionList" ? ["empty"] : []),
-                            ...([
-                              "Input",
-                              "TextField",
-                              "AmountInput",
-                              "FieldError",
-                              "VerificationStatus",
-                              "Alert",
-                              "TransferTimeline",
-                            ].includes(name)
-                              ? ["error"]
-                              : []),
-                            ...([
-                              "TransferTimeline",
-                              "Receipt",
-                              "VerificationStatus",
-                              "Alert",
-                            ].includes(name)
-                              ? ["pending", "completed"]
-                              : []),
-                            ...([
-                              "Button",
-                              "Input",
-                              "TextField",
-                              "AmountInput",
-                              "CurrencySelector",
-                              "Select",
-                              "Checkbox",
-                              "Switch",
-                              "Slider",
-                              "InputOTP",
-                              "TransferReview",
-                              "ConfirmationAction",
-                              "SearchField",
-                              "TextArea",
-                            ].includes(name)
-                              ? ["disabled"]
-                              : []),
-                          ]
-                      ).map((s) => (
-                        <option key={s}>{s}</option>
-                      ))}
-                    </select>
-                  </Control>
-                  {[
-                    "MoneyText",
-                    "CurrencySelector",
-                    "AmountInput",
-                    "BalanceCard",
-                    "TransactionRow",
-                    "TransactionList",
-                    "FeeBreakdown",
-                    "ExchangeQuote",
-                    "SpendingSummary",
-                    "LimitMeter",
-                    "TransferReview",
-                    "Receipt",
-                    "NumericKeypad",
-                    "DataTable",
-                    "ListGroup",
-                    "Select",
-                    "Tabs",
-                    "ScrollShadow",
-                  ].includes(name) && (
-                    <Control label="Currency">
-                      <select
-                        aria-label="Story currency"
-                        value={currency}
-                        onChange={(e) => {
-                          setCurrency(e.target.value);
-                          setAmount("1000");
-                        }}
-                      >
-                        {["USD", "GBP", "EUR", "INR", "JPY", "KWD"].map((c) => (
-                          <option key={c}>{c}</option>
-                        ))}
-                      </select>
-                    </Control>
-                  )}
-                  {[
-                    "MoneyText",
-                    "AmountInput",
-                    "FeeBreakdown",
-                    "ExchangeQuote",
-                    "TransferReview",
-                    "NumericKeypad",
-                    "Receipt",
-                  ].includes(name) && (
-                    <Control label="Amount">
-                      <input
-                        aria-label="Story amount"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        inputMode="decimal"
-                      />
-                    </Control>
-                  )}
-                  {["Button", "LinkButton", "PressableFeedback"].includes(
-                    name,
-                  ) && (
-                    <>
-                      <Control label="Size">
-                        <select
-                          aria-label="Story size"
-                          value={size}
-                          onChange={(e) =>
-                            setSize(e.target.value as "sm" | "md" | "lg")
-                          }
-                        >
-                          {["sm", "md", "lg"].map((s) => (
-                            <option key={s}>{s}</option>
-                          ))}
-                        </select>
-                      </Control>
-                      <Control label="Variant">
-                        <select
-                          aria-label="Story variant"
-                          value={variant}
-                          onChange={(e) => setVariant(e.target.value)}
-                        >
-                          {["primary", "secondary", "tertiary", "ghost"].map(
-                            (s) => (
-                              <option key={s}>{s}</option>
-                            ),
-                          )}
-                        </select>
-                      </Control>
-                    </>
-                  )}
-                  <div className="control-note">
-                    <Code2 size={15} />
-                    <p>
-                      Native source uses <code>heroui-native</code>. This
-                      browser uses its supported React counterpart.
-                    </p>
-                  </div>
-                  <div className="events">
-                    <h4>
-                      Interaction log <span>{logs.length}</span>
-                    </h4>
-                    {logs.length ? (
-                      logs.slice(0, 4).map((l, i) => <p key={i}>{l}</p>)
-                    ) : (
-                      <p className="muted">
-                        Interact with a component to see its events here.
-                      </p>
-                    )}
-                  </div>
-                </aside>
-              </div>
-            </>
+            <StoryPanel
+              key={section + name}
+              name={name}
+              section={section}
+              p={p}
+              logs={logs}
+              navigate={navigate}
+              setState={setState}
+              setSize={setSize}
+              setVariant={setVariant}
+            />
           )}
-          {section === "Patterns" && (
-            <Pattern name={name} p={p} key={name + reset} />
-          )}
+          {section === "Patterns" && <Pattern name={name} p={p} key={name} />}
           {section === "Audit" && <Audit navigate={navigate} />}
           {section === "References" && <Benchmarks />}
           <footer className="page-footer">
@@ -716,9 +270,10 @@ function App() {
       </div>
       {toast && (
         <div className="toast" role="status">
-          <CircleCheckIcon />
+          <Check size={17} />
           {toast}
           <button
+            type="button"
             aria-label="Dismiss notification"
             onClick={() => setToast("")}
           >
@@ -729,817 +284,5 @@ function App() {
     </div>
   );
 }
-const PlusMark = () => <span className="muted">+</span>;
-const CircleCheckIcon = () => <Check size={17} />;
-function Control({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="prop-control">
-      <span>{label}</span>
-      {children}
-    </label>
-  );
-}
-function Usage({
-  name,
-  section,
-  notify,
-}: {
-  name: string;
-  section: string;
-  notify: (v: string) => void;
-}) {
-  const core = section === "Primitives";
-  const moduleSource =
-    section === "Chat" ? nativeChatSource : nativeFinanceSource;
-  const start = moduleSource.indexOf("export function " + name + "(");
-  const next = moduleSource.indexOf("\nexport ", start + 1);
-  const source =
-    start >= 0 ? moduleSource.slice(start, next >= 0 ? next : undefined) : "";
-  const code = core
-    ? `import { ${name} } from 'heroui-native';\n\n// Preserve the upstream compound API.\n// Semantic roles come from the generated native theme.\n// All 39 audited exports: native/base.ts\n\n// Component reference:\nhttps://heroui.com/en/docs/native/components/${name.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase()}`
-    : source;
-  return (
-    <div className="code-panel">
-      <div className="row between">
-        <span className="small muted">
-          {core
-            ? "Native import guide"
-            : section === "Chat"
-              ? "Actual source · native/chat.tsx"
-              : "Actual source · native/finance.tsx"}
-        </span>
-        <Button
-          size="sm"
-          variant="ghost"
-          onPress={() =>
-            navigator.clipboard
-              .writeText(code)
-              .then(() => notify("Source copied"))
-              .catch(() => notify("Select the source to copy it"))
-          }
-        >
-          <Copy size={14} />
-          Copy
-        </Button>
-      </div>
-      <pre>{code}</pre>
-      <p className="small muted">
-        {core
-          ? "The browser story uses the supported HeroUI React counterpart."
-          : "The excerpt shares imports and helpers with the rest of the native module."}{" "}
-        The complete project includes the typed source and runnable Expo
-        catalog.
-      </p>
-    </div>
-  );
-}
 
-function Foundations({
-  name,
-  theme,
-  navigate,
-  p,
-}: {
-  name: string;
-  theme: string;
-  navigate: (s: Section, n: string) => void;
-  p: StoryProps;
-}) {
-  const colors = tokens.themes[theme as "light" | "dark"];
-  const [animate, setAnimate] = useState(false);
-  const copy = (s: string) =>
-    navigator.clipboard
-      .writeText(s)
-      .then(() => p.notify(s + " copied"))
-      .catch(() => p.notify("Select the value to copy it"));
-  if (name === "Overview")
-    return (
-      <>
-        <div className="overview-layout">
-          <section>
-            <div className="foundation-summary">
-              <span className="section-label">Foundations</span>
-              <h2>
-                Finance and chat.
-                <br />
-                One component system.
-              </h2>
-              <p>
-                Green primary actions, contrasting secondary actions, neutral
-                surfaces. Compact padding with space between sections.
-              </p>
-              <div className="architecture">
-                <span>Tokens</span>
-                <ArrowRight size={14} />
-                <span>Primitives</span>
-                <ArrowRight size={14} />
-                <span>Finance</span>
-              </div>
-            </div>
-            <div className="foundation-grid">
-              {[
-                ["Colors", "Purposeful, semantic roles"],
-                ["Typography", "5 sizes · 3 weights"],
-                ["Spacing", "A consistent 4-point scale"],
-                ["Radius", "6–10 px component corners"],
-              ].map(([n, d]) => {
-                const Icon = iconMap[n];
-                return (
-                  <button
-                    key={n}
-                    className="foundation-tile"
-                    onClick={() => navigate("Foundations", n)}
-                  >
-                    <div className="row between">
-                      <span className="tile-icon">
-                        <Icon size={18} />
-                      </span>
-                      <ArrowUpRight size={16} />
-                    </div>
-                    <h3>{n}</h3>
-                    <p>{d}</p>
-                    {n === "Colors" ? (
-                      <div className="mini-swatches">
-                        {[
-                          "accent",
-                          "accent-soft",
-                          "foreground",
-                          "surface-tertiary",
-                          "warning",
-                        ].map((c) => (
-                          <span
-                            key={c}
-                            style={{
-                              background: colors[c as keyof typeof colors],
-                            }}
-                          />
-                        ))}
-                      </div>
-                    ) : n === "Typography" ? (
-                      <div className="type-specimen">
-                        Aa <span>0123456789</span>
-                      </div>
-                    ) : n === "Spacing" ? (
-                      <div className="mini-spacing">
-                        {[8, 16, 24, 32, 48].map((v) => (
-                          <span key={v} style={{ width: v }} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="mini-radii">
-                        {[4, 8, 12, 16].map((v) => (
-                          <span key={v} style={{ borderRadius: v }} />
-                        ))}
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-          <aside className="live-preview">
-            <div className="row between">
-              <span className="section-label">Preview</span>
-              <span className="small muted">Mobile / {theme}</span>
-            </div>
-            <Phone>
-              <AccountHome
-                p={p}
-                onSend={() => navigate("Patterns", "Send money")}
-              />
-            </Phone>
-            <p className="preview-caption">
-              <span className="version-dot" />
-              Shared tokens · light and dark
-            </p>
-          </aside>
-        </div>
-        <div className="scope-strip">
-          <div>
-            <b>39</b>
-            <span>HeroUI primitives</span>
-          </div>
-          <div>
-            <b>18</b>
-            <span>Finance components</span>
-          </div>
-          <div>
-            <b>8</b>
-            <span>Extended primitives</span>
-          </div>
-          <div>
-            <b>7</b>
-            <span>Chat components</span>
-          </div>
-          <div>
-            <b>6</b>
-            <span>UI patterns</span>
-          </div>
-          <Button
-            variant="ghost"
-            onPress={() => navigate("Audit", "Finance coverage")}
-          >
-            Explore coverage
-            <ArrowRight size={15} />
-          </Button>
-        </div>
-        <div className="foundation-note">
-          <ShieldCheck size={19} />
-          <p>
-            <strong>A mobile system, with a browser workshop.</strong>
-            <br />
-            Shared tokens power both implementations. Native source is included;
-            browser interaction checks are not a substitute for iOS and Android
-            device QA.
-          </p>
-        </div>
-      </>
-    );
-  if (name === "Colors")
-    return (
-      <>
-        <div className="section-heading">
-          <h2>Semantic colors</h2>
-          <span className="small muted">
-            {Object.keys(colors).length} roles · {theme} theme · click to copy
-          </span>
-        </div>
-        <div className="color-grid">
-          {Object.entries(colors).map(([n, v]) => (
-            <button className="color-token" key={n} onClick={() => copy(v)}>
-              <span className="color-swatch" style={{ background: v }} />
-              <strong>{n}</strong>
-              <code>{v}</code>
-            </button>
-          ))}
-        </div>
-        <div className="section-heading">
-          <h2>Primitive palette</h2>
-          <span className="small muted">Raw colors become semantic roles</span>
-        </div>
-        {Object.entries(tokens.primitives).map(([n, values]) => (
-          <div className="palette-row" key={n}>
-            <strong>{n}</strong>
-            <div>
-              {Object.entries(values).map(([step, v]) => (
-                <button key={step} onClick={() => copy(v)}>
-                  <span style={{ background: v }} />
-                  <small>{step}</small>
-                  <code>{v}</code>
-                </button>
-              ))}
-            </div>
-          </div>
-        ))}
-        <p className="note">
-          Use <code>success</code> and <code>danger</code> for direction. Status
-          always includes a text label or icon; color carries supporting
-          meaning.
-        </p>
-      </>
-    );
-  if (name === "Typography")
-    return (
-      <div className="type-table">
-        {Object.entries(tokens.typography).map(([n, s]) => (
-          <div className="type-row" key={n}>
-            <div>
-              <strong>{n}</strong>
-              <code>
-                {s.size} / {s.lineHeight} · {s.weight}
-              </code>
-            </div>
-            <div style={typeStyles(n)}>
-              {["display", "balance"].includes(n)
-                ? "$12,845.00"
-                : "Clarity in every transaction."}
-            </div>
-            <button
-              className="icon-button"
-              aria-label={"Copy " + n + " token"}
-              onClick={() => copy("typography." + n)}
-            >
-              <Copy size={14} />
-            </button>
-          </div>
-        ))}
-        <p className="note">
-          Inter on web and native. Small amounts, account references and numeric
-          controls use Geist Mono. Large balances use Inter with tabular
-          figures. Five sizes: 12, 14, 16, 24 and 32. Three weights: 400, 500
-          and 600. Roles share sizes; weight establishes hierarchy.
-        </p>
-      </div>
-    );
-  if (name === "Spacing")
-    return (
-      <div className="space-table">
-        {Object.entries(tokens.spacing).map(([n, v]) => (
-          <div key={n}>
-            <code>spacing.{n}</code>
-            <span className="small muted">{v} px</span>
-            <span className="space-visual" style={{ width: v * 4 || 2 }} />
-          </div>
-        ))}
-        <p className="note">
-          4 px base rhythm. Use 8–12 px within a control, 16 px between related
-          content, 16 px for card padding, and 32 px between sections. Controls
-          use 12 px on the icon side and 18 px on the text side (1.5×).
-        </p>
-      </div>
-    );
-  if (name === "Radius")
-    return (
-      <div className="radius-grid">
-        {Object.entries(tokens.radius).map(([n, v]) => (
-          <div className="shape-token" key={n}>
-            <span style={{ borderRadius: v }} />
-            <h3>{n}</h3>
-            <code>{v === 9999 ? "Pill / circular" : v + " px"}</code>
-            <p>
-              {n === "full"
-                ? "Status dots and radio indicators only"
-                : n === "lg"
-                  ? "Cards and surfaces"
-                  : n === "md"
-                    ? "Fields and controls"
-                    : n === "xl"
-                      ? "Sheets and dialogs"
-                      : "Fine detail and small surfaces"}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
-  if (name === "Elevation")
-    return (
-      <div className="radius-grid">
-        {Object.entries(tokens.elevation).map(([n, v]) => (
-          <div className="shape-token" key={n}>
-            <span style={{ boxShadow: v, borderRadius: tokens.radius.md }} />
-            <h3>{n}</h3>
-            <code>{v}</code>
-            <p>
-              {n === "overlay"
-                ? "Dialogs and floating panels"
-                : "Surface tone provides distinction; no decorative shadow."}
-            </p>
-          </div>
-        ))}
-      </div>
-    );
-  if (name === "Motion")
-    return (
-      <>
-        <div className="motion-grid">
-          {Object.entries(tokens.motion)
-            .filter(([, v]) => typeof v === "number")
-            .map(([n, v]) => (
-              <div className="motion-token" key={n}>
-                <h3>{n}</h3>
-                <code>{v} ms</code>
-                <div className="motion-track">
-                  <span
-                    style={{
-                      transform: `translateX(${animate ? 160 : 0}px)`,
-                      transitionDuration: v + "ms",
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-        </div>
-        <Button onPress={() => setAnimate(!animate)}>
-          Replay transitions
-          <Zap size={15} />
-        </Button>
-        <p className="note">
-          Reduced motion disables custom animations and transitions. Loading
-          remains explained with text. No decorative movement is required to
-          understand a financial state.
-        </p>
-      </>
-    );
-  return (
-    <>
-      <div className="section-heading">
-        <h2>Text contrast</h2>
-        <span className="small muted">Calculated from the current theme</span>
-      </div>
-      <div className="contrast-grid">
-        {[
-          ["foreground", "background"],
-          ["muted", "surface"],
-          ["accent-foreground", "accent"],
-          ["secondary-foreground", "secondary"],
-          ["foreground", "surface-tertiary"],
-          ["surface", "success"],
-          ["surface", "warning"],
-          ["surface", "danger"],
-          ["foreground", "surface-secondary"],
-        ].map(([fg, bg]) => {
-          const ratio = contrast(
-            colors[fg as keyof typeof colors],
-            colors[bg as keyof typeof colors],
-          );
-          return (
-            <div className="contrast-token" key={fg}>
-              <span
-                style={{
-                  color: colors[fg as keyof typeof colors],
-                  background: colors[bg as keyof typeof colors],
-                }}
-              >
-                Aa
-              </span>
-              <div>
-                <strong>{fg}</strong>
-                <small>on {bg}</small>
-              </div>
-              <b className={ratio >= 4.5 ? "positive" : "danger"}>
-                {ratio.toFixed(2)}:1 {ratio >= 4.5 ? "AA" : "Review"}
-              </b>
-            </div>
-          );
-        })}
-      </div>
-      <div className="a11y-grid">
-        {[
-          [
-            "48 × 48",
-            "Shared touch target; covers iOS 44 pt and Android 48 dp",
-          ],
-          ["Visible focus", "Keyboard focus uses the focus token"],
-          ["Text + color", "Pending, complete and failed have labels"],
-          [
-            "Integer money",
-            "No binary floating-point arithmetic for stored amounts",
-          ],
-          ["Privacy", "Balances can be masked before sharing"],
-          ["Reduced motion", "Follows prefers-reduced-motion"],
-        ].map(([a, b]) => (
-          <Card key={a}>
-            <h3>{a}</h3>
-            <p className="small muted">{b}</p>
-          </Card>
-        ))}
-      </div>
-    </>
-  );
-}
-
-function Phone({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="phone">
-      <div className="phone-status">
-        <b>9:41</b>
-        <span className="phone-island" />
-        <span>▴ ▴ ▰</span>
-      </div>
-      <div className="phone-screen">{children}</div>
-      <div className="phone-home" />
-    </div>
-  );
-}
-function AccountHome({ p, onSend }: { p: StoryProps; onSend: () => void }) {
-  const [active, setActive] = useState("Home");
-  return (
-    <div className="account-home">
-      <div className="row between account-greeting">
-        <div>
-          <span className="small muted">Good morning,</span>
-          <h3>Alex Morgan</h3>
-        </div>
-        <button
-          className="profile-avatar"
-          onClick={() => p.notify("Demo profile · Alex Morgan")}
-        >
-          AM
-        </button>
-      </div>
-      <BalanceCard {...p} onSend={onSend} />
-      <div className="row between activity-heading">
-        <h3>Recent activity</h3>
-        <button
-          className="text-link"
-          onClick={() => p.notify("Showing all four demo transactions")}
-        >
-          See all
-        </button>
-      </div>
-      <TransactionList
-        currency={p.currency}
-        onPress={() => p.notify("Transaction details selected")}
-      />
-      <div className="phone-nav">
-        {[
-          [Home, "Home"],
-          [CreditCard, "Cards"],
-          [Users, "Recipients"],
-          [Grid2X2, "More"],
-        ].map(([Icon, label]) => {
-          const I = Icon as typeof Home;
-          return (
-            <button
-              key={String(label)}
-              className={active === label ? "active" : ""}
-              onClick={() => {
-                setActive(String(label));
-                p.notify(String(label) + " demo navigation");
-              }}
-            >
-              <I size={18} />
-              <span>{String(label)}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-function Pattern({ name, p }: { name: string; p: StoryProps }) {
-  const [step, setStep] = useState(0);
-  if (name === "Chat conversation")
-    return (
-      <div className="chat-pattern">
-        <ChatThread />
-      </div>
-    );
-  return (
-    <div className="pattern-layout">
-      <Phone>
-        {name === "Account overview" ? (
-          <AccountHome
-            p={p}
-            onSend={() =>
-              p.notify("Choose Send money from the Patterns navigation")
-            }
-          />
-        ) : (
-          <div className="pattern-screen">
-            <button
-              className="text-link"
-              onClick={() => setStep(Math.max(0, step - 1))}
-            >
-              ← Back
-            </button>
-            <h2>{name}</h2>
-            {name === "Send money" ? (
-              step === 0 ? (
-                <div className="stack">
-                  <AmountInput
-                    value={p.amount}
-                    onChange={p.setAmount}
-                    currency={p.currency}
-                    onCurrency={p.setCurrency}
-                  />
-                  <ExchangeQuote {...p} />
-                  <Button
-                    isDisabled={
-                      parseMinor(p.amount, p.currency) === null ||
-                      (parseMinor(p.amount, p.currency) ?? 0) <= 250
-                    }
-                    onPress={() => setStep(1)}
-                  >
-                    Review transfer
-                    <ArrowRight size={16} />
-                  </Button>
-                  <p className="micro muted center">
-                    Fixed demo rates · no real payments
-                  </p>
-                </div>
-              ) : (
-                <TransferReview {...p} />
-              )
-            ) : name === "Transaction details" ? (
-              <div className="stack">
-                <h3>Transfer to Jamie Chen</h3>
-                <TransferTimeline state={p.state} />
-                <AccountDetails {...p} />
-              </div>
-            ) : name === "Card controls" ? (
-              <PaymentCard {...p} />
-            ) : (
-              <VerificationStatus {...p} />
-            )}
-          </div>
-        )}
-      </Phone>
-      <aside className="pattern-notes">
-        <span className="section-label">Built from</span>
-        <h2>Component composition</h2>
-        <p className="muted">
-          {name === "Send money"
-            ? "Edit an amount, review the demo quote, acknowledge the recipient details and confirm. All values remain local."
-            : name === "Account overview"
-              ? "Balance, privacy, quick actions and transaction history share the same component contracts."
-              : "Try the controls in the mobile viewport. Changes are local demo state."}
-        </p>
-        <div className="token-chips">
-          {(name === "Send money"
-            ? [
-                "AmountInput",
-                "CurrencySelector",
-                "ExchangeQuote",
-                "TransferReview",
-                "ConfirmationAction",
-              ]
-            : name === "Account overview"
-              ? ["BalanceCard", "TransactionList", "MoneyText"]
-              : name === "Card controls"
-                ? ["PaymentCard", "Switch", "Button"]
-                : name === "Identity verification"
-                  ? ["VerificationStatus", "Alert", "Button"]
-                  : ["TransferTimeline", "AccountDetails"]
-          ).map((n) => (
-            <code key={n}>{n}</code>
-          ))}
-        </div>
-        <div className="control-note">
-          <ShieldCheck size={17} />
-          <p>
-            Illustrative UI only. No bank connection, live rates, identity
-            service or payment processing.
-          </p>
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function Audit({ navigate }: { navigate: (s: Section, n: string) => void }) {
-  return (
-    <>
-      <div className="audit-summary">
-        <Card>
-          <h3>39 mapped primitives</h3>
-          <p className="small muted">
-            Existing HeroUI Native core. Each has a browser adapter and a token
-            contract.
-          </p>
-        </Card>
-        <Card>
-          <h3>33 custom components</h3>
-          <p className="small muted">
-            18 finance, 8 supporting and 7 chat components. No Pro dependency.
-          </p>
-        </Card>
-        <Card>
-          <h3>Native QA pending</h3>
-          <p className="small muted">
-            A native catalog is included. No iOS simulator is configured on this
-            machine.
-          </p>
-        </Card>
-      </div>
-      <div className="audit-table">
-        <table>
-          <thead>
-            <tr>
-              <th>Capability</th>
-              <th>HeroUI Native core</th>
-              <th>Our addition</th>
-              <th>Coverage</th>
-            </tr>
-          </thead>
-          <tbody>
-            {gaps.map((g) => (
-              <tr key={g.area}>
-                <th scope="row">
-                  {g.area}
-                  <small>{g.scope}</small>
-                </th>
-                <td>{g.core}</td>
-                <td>{g.extension}</td>
-                <td>
-                  <span
-                    className={`audit-state ${g.state === "Built" ? "built" : ""}`}
-                  >
-                    {g.state}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="section-heading">
-        <h2>Component contracts</h2>
-        <span className="small muted">
-          Select a component to inspect its token mapping
-        </span>
-      </div>
-      <div className="coverage-grid">
-        {[...baseNames, ...financeNames, ...extensionNames, ...chatNames].map(
-          (n) => (
-            <button
-              key={n}
-              onClick={() =>
-                navigate(
-                  baseNames.includes(n)
-                    ? "Primitives"
-                    : financeNames.includes(n)
-                      ? "Finance"
-                      : extensionNames.includes(n)
-                        ? "Extensions"
-                        : "Chat",
-                  n,
-                )
-              }
-            >
-              <Check size={13} />
-              {n}
-              <ArrowUpRight size={13} />
-            </button>
-          ),
-        )}
-      </div>
-      <p className="note">
-        This release covers wallet, remittance, card-management and everyday
-        spending UI. Investment, lending and real financial integrations are
-        separate scope. Official references:{" "}
-        <a
-          href="https://heroui.com/en/docs/native/components"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Native core catalog
-        </a>{" "}
-        ·{" "}
-        <a
-          href="https://heroui.pro/docs/native/components"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Native Pro catalog
-        </a>
-        .
-      </p>
-    </>
-  );
-}
-function Benchmarks() {
-  return (
-    <>
-      <div className="benchmark-grid">
-        {references.map((r) => (
-          <Card className="benchmark-card" key={r.title}>
-            <div className="row between">
-              <div>
-                <span className="small muted">{r.app} / iOS</span>
-                <h3>{r.title}</h3>
-              </div>
-              <a
-                className="icon-button"
-                href={r.url}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={"View " + r.app + " " + r.title + " on Mobbin"}
-              >
-                <ExternalLink size={16} />
-              </a>
-            </div>
-            <a href={r.url} target="_blank" rel="noreferrer">
-              <img
-                src={r.image}
-                alt={`${r.app} ${r.title}, benchmark reference from Mobbin`}
-              />
-            </a>
-            <h4>What we observed</h4>
-            <ul>
-              {r.notes.map((n) => (
-                <li key={n}>{n}</li>
-              ))}
-            </ul>
-            <div className="token-chips">
-              {r.applied.map((n) => (
-                <code key={n}>{n}</code>
-              ))}
-            </div>
-            <a
-              className="text-link"
-              href={r.url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Open reference on Mobbin
-              <ArrowUpRight size={13} />
-            </a>
-          </Card>
-        ))}
-      </div>
-      <p className="note">
-        References were retrieved through Mobbin MCP and inspected visually.
-        They inform information hierarchy and component needs. Finance UI uses
-        its own tokens and compositions.
-      </p>
-    </>
-  );
-}
 export default App;
