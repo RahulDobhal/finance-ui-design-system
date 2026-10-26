@@ -181,3 +181,26 @@ use mobbin mcp to understand the ux of other apps, but this is a chat first app 
 ### Follow-up preference
 
 The user chose **“Preserve the latest version”** when asked whether to keep the simplified Alex Morgan header and product card screen without reveal/freeze controls. These preferences apply to the product examples; the reusable library controls remain available.
+
+
+## Web CI failure follow-up
+
+The user supplied a screenshot of the failed Web quality workflow, followed by these prompts:
+
+```text
+whys it failing
+```
+
+```text
+is it needed to intall expor, is it a standard pracxtive or not
+```
+
+```text
+The right fix is to treat native source previews as plain text, so the web build doesn’t try to compile them or load Expo’s configuration.
+
+no is this also the right fix or its fine to keep them failing, does it go against our code scalability thing
+```
+
+```text
+apply then what are u waiting for
+```

@@ -1,3 +1,13 @@
+# Web CI build correction — 26 October 2026
+
+The first hosted run passed installation, token validation and all 42 tests, but failed during Vite bundling: native `?raw` source previews triggered resolution of `expo/tsconfig.base`. The local native installation had masked that dependency.
+
+The web Vite transform now excludes native paths while retaining raw source loading. No Expo dependency was added and native files are unchanged. A regression test reproduces the failure with an unresolved Expo configuration, then verifies that the built preview exports the exact source text and that ordinary web TypeScript still compiles.
+
+Verified from an isolated source snapshot with a fresh root-only `npm ci`, no native dependencies and no Expo: token freshness, **43 tests**, TypeScript and production build all pass. Hosted workflow verification is performed after pushing this fix.
+
+---
+
 # Final web review and product screens
 
 Verified 25 October 2026. This section supersedes the earlier web build observations below; the earlier native export evidence remains historical.
